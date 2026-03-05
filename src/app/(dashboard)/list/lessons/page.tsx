@@ -19,7 +19,7 @@ const LessonListPage = async ({
   searchParams: { [key: string]: string | undefined };
 }) => {
 
-const { sessionClaims } = auth();
+const { userId, sessionClaims } = auth();
 const role = (sessionClaims?.metadata as { role?: string })?.role;
 
 
@@ -37,7 +37,7 @@ const columns = [
     accessor: "teacher",
     className: "hidden md:table-cell",
   },
-  ...(role === "admin"
+  ...(role === "admin" || role === "teacher"
     ? [
         {
           header: "Actions",
@@ -59,7 +59,7 @@ const renderRow = (item: LessonList) => (
     </td>
     <td>
       <div className="flex items-center gap-2">
-        {role === "admin" && (
+        {(role === "admin" || role === "teacher") && (
           <>
             <FormContainer table="lesson" type="update" data={item} />
             <FormContainer table="lesson" type="delete" id={item.id} />
@@ -101,6 +101,10 @@ const renderRow = (item: LessonList) => (
     }
   }
 
+  if (role === "teacher") {
+    query.teacherId = userId!;
+  }
+
   const [data, count] = await prisma.$transaction([
     prisma.lesson.findMany({
       where: query,
@@ -129,7 +133,9 @@ const renderRow = (item: LessonList) => (
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && <FormContainer table="lesson" type="create" />}
+            {(role === "admin" || role === "teacher") && (
+              <FormContainer table="lesson" type="create" />
+            )}
           </div>
         </div>
       </div>

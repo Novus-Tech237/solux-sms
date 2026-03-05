@@ -23,6 +23,8 @@ const TeacherForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+
   const {
     register,
     handleSubmit,
@@ -184,7 +186,7 @@ const TeacherForm = ({
           )}
         </div>
         <CldUploadWidget
-          uploadPreset="school"
+          uploadPreset={uploadPreset}
           onSuccess={(result, { widget }) => {
             setImg(result.info);
             widget.close();

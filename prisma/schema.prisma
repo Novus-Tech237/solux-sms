@@ -21,17 +21,18 @@ model Student {
   phone       String?      @unique
   address     String
   img         String?
-  bloodType   String
+  bloodType   String?
   sex         UserSex
   createdAt   DateTime     @default(now())
-  parentId    String
-  parent      Parent       @relation(fields: [parentId], references: [id])
-  classId     Int
-  class       Class        @relation(fields: [classId], references: [id])
-  gradeId     Int
-  grade       Grade        @relation(fields: [gradeId], references: [id])
+  classId     Int?
+  class       Class?       @relation(fields: [classId], references: [id])
+  gradeId     Int?
+  grade       Grade?       @relation(fields: [gradeId], references: [id])
+  semester    String
   attendances Attendance[]
   results     Result[]
+  assignmentSubmissions AssignmentSubmission[]
+  examSubmissions ExamSubmission[]
   birthday    DateTime
 }
 
@@ -53,17 +54,7 @@ model Teacher {
   birthday  DateTime
 }
 
-model Parent {
-  id        String    @id
-  username  String    @unique
-  name      String
-  surname   String
-  email     String?   @unique
-  phone     String    @unique
-  address   String
-  createdAt DateTime  @default(now())
-  students  Student[]
-}
+// Parent model removed
 
 model Grade {
   id    Int @id @default(autoincrement())
@@ -101,6 +92,8 @@ model Lesson {
   day       Day
   startTime DateTime
   endTime   DateTime
+  pdfUrl    String?
+  videoUrl  String?
 
   subjectId   Int
   subject     Subject      @relation(fields: [subjectId], references: [id])
@@ -118,10 +111,12 @@ model Exam {
   title     String
   startTime DateTime
   endTime   DateTime
+  pdfUrl    String?
 
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
   results  Result[]
+  submissions ExamSubmission[]
 }
 
 model Assignment {
@@ -129,10 +124,36 @@ model Assignment {
   title     String
   startDate DateTime
   dueDate   DateTime
+  pdfUrl    String?
 
   lessonId Int
   lesson   Lesson   @relation(fields: [lessonId], references: [id])
   results  Result[]
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           Int        @id @default(autoincrement())
+  fileUrl      String
+  submittedAt  DateTime   @default(now())
+  assignmentId Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+
+  @@unique([assignmentId, studentId])
+}
+
+model ExamSubmission {
+  id          Int      @id @default(autoincrement())
+  fileUrl     String
+  submittedAt DateTime @default(now())
+  examId      Int
+  exam        Exam     @relation(fields: [examId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+
+  @@unique([examId, studentId])
 }
 
 model Result {

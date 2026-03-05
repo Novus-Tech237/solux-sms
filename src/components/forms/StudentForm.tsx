@@ -33,6 +33,8 @@ const StudentForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+
   const {
     register,
     handleSubmit,
@@ -92,37 +94,41 @@ const StudentForm = ({
           register={register}
           error={errors?.email}
         />
-        <InputField
-          label="Password"
-          name="password"
-          type="password"
-          defaultValue={data?.password}
-          register={register}
-          error={errors?.password}
-        />
+        {type === "update" && (
+          <InputField
+            label="Password"
+            name="password"
+            type="password"
+            defaultValue={data?.password}
+            register={register}
+            error={errors?.password}
+          />
+        )}
       </div>
       <span className="text-xs text-gray-400 font-medium">
         Personal Information
       </span>
-      <CldUploadWidget
-        uploadPreset="school"
-        onSuccess={(result, { widget }) => {
-          setImg(result.info);
-          widget.close();
-        }}
-      >
-        {({ open }) => {
-          return (
-            <div
-              className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-              onClick={() => open()}
-            >
-              <Image src="/upload.png" alt="" width={28} height={28} />
-              <span>Upload a photo</span>
-            </div>
-          );
-        }}
-      </CldUploadWidget>
+      {type === "update" && (
+        <CldUploadWidget
+          uploadPreset={uploadPreset}
+          onSuccess={(result, { widget }) => {
+            setImg(result.info);
+            widget.close();
+          }}
+        >
+          {({ open }) => {
+            return (
+              <div
+                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
+                onClick={() => open()}
+              >
+                <Image src="/upload.png" alt="" width={28} height={28} />
+                <span>Upload a photo</span>
+              </div>
+            );
+          }}
+        </CldUploadWidget>
+      )}
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
           label="First Name"
@@ -152,27 +158,30 @@ const StudentForm = ({
           register={register}
           error={errors.address}
         />
-        <InputField
-          label="Blood Type"
-          name="bloodType"
-          defaultValue={data?.bloodType}
-          register={register}
-          error={errors.bloodType}
-        />
+        {type === "update" && (
+          <InputField
+            label="Blood Type"
+            name="bloodType"
+            defaultValue={data?.bloodType}
+            register={register}
+            error={errors.bloodType}
+          />
+        )}
         <InputField
           label="Birthday"
           name="birthday"
-          defaultValue={data?.birthday.toISOString().split("T")[0]}
+          defaultValue={data?.birthday ? data?.birthday.toISOString().split("T")[0] : ""}
           register={register}
           error={errors.birthday}
           type="date"
         />
+        {/* Parent removed */}
         <InputField
-          label="Parent Id"
-          name="parentId"
-          defaultValue={data?.parentId}
+          label="Semester of Admission"
+          name="semester"
+          defaultValue={data?.semester}
           register={register}
-          error={errors.parentId}
+          error={errors.semester}
         />
         {data && (
           <InputField
@@ -200,7 +209,8 @@ const StudentForm = ({
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
+        {type === "update" && (
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Grade</label>
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
@@ -218,8 +228,10 @@ const StudentForm = ({
               {errors.gradeId.message.toString()}
             </p>
           )}
-        </div>
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
+          </div>
+        )}
+        {type === "update" && (
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Class</label>
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
@@ -246,7 +258,8 @@ const StudentForm = ({
               {errors.classId.message.toString()}
             </p>
           )}
-        </div>
+          </div>
+        )}
       </div>
       {state.error && (
         <span className="text-red-500">Something went wrong!</span>

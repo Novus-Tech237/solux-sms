@@ -93,27 +93,14 @@ async function main() {
     });
   }
 
-  // PARENT
-  for (let i = 1; i <= 25; i++) {
-    await prisma.parent.create({
-      data: {
-        id: `parentId${i}`,
-        username: `parentId${i}`,
-        name: `PName ${i}`,
-        surname: `PSurname ${i}`,
-        email: `parent${i}@example.com`,
-        phone: `123-456-789${i}`,
-        address: `Address${i}`,
-      },
-    });
-  }
+  // Parent model removed from schema; skipping parent seed
 
   // STUDENT
   for (let i = 1; i <= 50; i++) {
     await prisma.student.create({
       data: {
-        id: `student${i}`, 
-        username: `student${i}`, 
+        id: `student${i}`,
+        username: `student${i}`,
         name: `SName${i}`,
         surname: `SSurname ${i}`,
         email: `student${i}@example.com`,
@@ -121,9 +108,7 @@ async function main() {
         address: `Address${i}`,
         bloodType: "O-",
         sex: i % 2 === 0 ? UserSex.MALE : UserSex.FEMALE,
-        parentId: `parentId${Math.ceil(i / 2) % 25 || 25}`, 
-        gradeId: (i % 6) + 1, 
-        classId: (i % 6) + 1, 
+        semester: `${new Date().getFullYear()}-1`,
         birthday: new Date(new Date().setFullYear(new Date().getFullYear() - 10)),
       },
     });

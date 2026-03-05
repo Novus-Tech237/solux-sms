@@ -144,11 +144,7 @@ const renderRow = (item: ResultList) => (
       query.studentId = currentUserId!;
       break;
 
-    case "parent":
-      query.student = {
-        parentId: currentUserId!,
-      };
-      break;
+    // parent role removed
     default:
       break;
   }

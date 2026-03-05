@@ -7,6 +7,7 @@ import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Exam, Prisma, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
 
 type ExamList = Exam & {
   lesson: {
@@ -71,6 +72,14 @@ const renderRow = (item: ExamList) => (
     </td>
     <td>
       <div className="flex items-center gap-2">
+        {role === "teacher" && (
+          <Link
+            href={`/teacher/submissions?type=exam&id=${item.id}`}
+            className="text-xs bg-lamaSkyLight px-2 py-1 rounded-md"
+          >
+            Submissions
+          </Link>
+        )}
         {(role === "admin" || role === "teacher") && (
           <>
             <FormContainer table="exam" type="update" data={item} />
@@ -130,15 +139,7 @@ const renderRow = (item: ExamList) => (
         },
       };
       break;
-    case "parent":
-      query.lesson.class = {
-        students: {
-          some: {
-            parentId: currentUserId!,
-          },
-        },
-      };
-      break;
+    // parent role removed
 
     default:
       break;

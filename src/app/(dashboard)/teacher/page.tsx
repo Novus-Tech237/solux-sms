@@ -1,6 +1,6 @@
-import Announcements from "@/components/Announcements";
 import BigCalendarContainer from "@/components/BigCalendarContainer";
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
 
 const TeacherPage = () => {
   const { userId } = auth();
@@ -15,7 +15,21 @@ const TeacherPage = () => {
       </div>
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-8">
-        <Announcements />
+        <div className="bg-white rounded-md p-4 flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Teaching Workspace</h2>
+          <Link href="/list/lessons" className="text-sm underline">
+            Manage Lessons (PDF + optional video)
+          </Link>
+          <Link href="/list/assignments" className="text-sm underline">
+            Manage Assignments (PDF + deadline)
+          </Link>
+          <Link href="/list/exams" className="text-sm underline">
+            Manage Exams (PDF + deadline)
+          </Link>
+          <Link href="/teacher/submissions" className="text-sm underline">
+            View Student Submissions
+          </Link>
+        </div>
       </div>
     </div>
   );

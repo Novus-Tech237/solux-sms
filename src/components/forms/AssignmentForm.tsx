@@ -3,8 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
-import { examSchema, ExamSchema } from "@/lib/formValidationSchemas";
-import { createExam, updateExam } from "@/lib/actions";
+import {
+  AssignmentSchema,
+  assignmentSchema,
+} from "@/lib/formValidationSchemas";
+import { createAssignment, updateAssignment } from "@/lib/actions";
 import { useFormState } from "react-dom";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { toast } from "react-toastify";
@@ -12,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
 
-const ExamForm = ({
+const AssignmentForm = ({
   type,
   data,
   setOpen,
@@ -30,16 +33,14 @@ const ExamForm = ({
     handleSubmit,
     setValue,
     formState: { errors },
-  } = useForm<ExamSchema>({
-    resolver: zodResolver(examSchema),
+  } = useForm<AssignmentSchema>({
+    resolver: zodResolver(assignmentSchema),
   });
 
   const [uploadedPdfUrl, setUploadedPdfUrl] = useState<string>(data?.pdfUrl || "");
 
-  // AFTER REACT 19 IT'LL BE USEACTIONSTATE
-
   const [state, formAction] = useFormState(
-    type === "create" ? createExam : updateExam,
+    type === "create" ? createAssignment : updateAssignment,
     {
       success: false,
       error: false,
@@ -57,23 +58,25 @@ const ExamForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Exam has been ${type === "create" ? "created" : "updated"}!`);
+      toast(
+        `Assignment has been ${type === "create" ? "created" : "updated"}!`
+      );
       setOpen(false);
       router.refresh();
     }
   }, [state, router, type, setOpen]);
 
-  const { lessons } = relatedData;
+  const { lessons = [] } = relatedData || {};
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new exam" : "Update the exam"}
+        {type === "create" ? "Create a new assignment" : "Update the assignment"}
       </h1>
 
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
-          label="Exam title"
+          label="Assignment title"
           name="title"
           defaultValue={data?.title}
           register={register}
@@ -81,30 +84,30 @@ const ExamForm = ({
         />
         <InputField
           label="Start Date"
-          name="startTime"
-          defaultValue={data?.startTime}
+          name="startDate"
+          defaultValue={data?.startDate}
           register={register}
-          error={errors?.startTime}
+          error={errors?.startDate}
           type="datetime-local"
         />
         <InputField
-          label="End Date"
-          name="endTime"
-          defaultValue={data?.endTime}
+          label="Deadline"
+          name="dueDate"
+          defaultValue={data?.dueDate}
           register={register}
-          error={errors?.endTime}
+          error={errors?.dueDate}
           type="datetime-local"
         />
         <input type="hidden" {...register("pdfUrl")} value={uploadedPdfUrl || data?.pdfUrl || ""} />
         <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Exam PDF</label>
+          <label className="text-xs text-gray-500">Assignment PDF</label>
           <CldUploadWidget
             uploadPreset={uploadPreset}
             options={{
               resourceType: "raw",
               maxFiles: 1,
               clientAllowedFormats: ["pdf"],
-              folder: "school/exams",
+              folder: "school/assignments",
             }}
             onSuccess={(result: any, { widget }) => {
               const secureUrl = result?.info?.secure_url as string;
@@ -121,7 +124,7 @@ const ExamForm = ({
                 onClick={() => open()}
               >
                 <Image src="/upload.png" alt="" width={24} height={24} />
-                <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload exam PDF"}</span>
+                <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload assignment PDF"}</span>
               </div>
             )}
           </CldUploadWidget>
@@ -129,6 +132,7 @@ const ExamForm = ({
             <p className="text-xs text-red-400">{errors.pdfUrl.message.toString()}</p>
           )}
         </div>
+
         {data && (
           <InputField
             label="Id"
@@ -139,6 +143,7 @@ const ExamForm = ({
             hidden
           />
         )}
+
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Lesson</label>
           <select
@@ -153,15 +158,12 @@ const ExamForm = ({
             ))}
           </select>
           {errors.lessonId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.lessonId.message.toString()}
-            </p>
+            <p className="text-xs text-red-400">{errors.lessonId.message.toString()}</p>
           )}
         </div>
       </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
-      )}
+
+      {state.error && <span className="text-red-500">Something went wrong!</span>}
       <button className="bg-blue-400 text-white p-2 rounded-md">
         {type === "create" ? "Create" : "Update"}
       </button>
@@ -169,4 +171,4 @@ const ExamForm = ({
   );
 };
 
-export default ExamForm;
+export default AssignmentForm;

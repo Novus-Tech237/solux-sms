@@ -1,5 +1,5 @@
 {
-  "name": "lama-dev-next-dashboard",
+  "name": "solux-school-management",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@clerk/elements": "^0.14.6",
+    "@clerk/types": "4.26.0",
     "@clerk/nextjs": "^5.4.1",
     "@hookform/resolvers": "^3.9.0",
     "@prisma/client": "^5.19.1",
     "@types/react-big-calendar": "^1.8.9",
+    "jszip": "^3.10.1",
     "moment": "^2.30.1",
     "next": "14.2.5",
     "next-cloudinary": "^6.13.0",
