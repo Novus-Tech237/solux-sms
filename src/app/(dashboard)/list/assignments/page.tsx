@@ -4,15 +4,14 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Assignment, Class, Prisma, Subject, Teacher } from "@prisma/client";
+import { Assignment, Course, Prisma, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
 type AssignmentList = Assignment & {
   lesson: {
-    subject: Subject;
-    class: Class;
+    course: Course;
     teacher: Teacher;
   };
 };
@@ -30,12 +29,12 @@ const AssignmentListPage = async ({
   
   const columns = [
     {
-      header: "Subject Name",
-      accessor: "name",
+      header: "Title",
+      accessor: "title",
     },
     {
-      header: "Class",
-      accessor: "class",
+      header: "Course",
+      accessor: "course",
     },
     {
       header: "Teacher",
@@ -62,8 +61,8 @@ const AssignmentListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
-      <td className="flex items-center gap-4 p-4">{item.lesson.subject.name}</td>
-      <td>{item.lesson.class.name}</td>
+      <td className="flex items-center gap-4 p-4">{item.title}</td>
+      <td>{item.lesson.course.name}</td>
       <td className="hidden md:table-cell">
         {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
       </td>
@@ -105,16 +104,17 @@ const AssignmentListPage = async ({
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
-          case "classId":
-            query.lesson.classId = parseInt(value);
+          case "courseId":
+            query.lesson.courseId = parseInt(value);
             break;
           case "teacherId":
             query.lesson.teacherId = value;
             break;
           case "search":
-            query.lesson.subject = {
-              name: { contains: value, mode: "insensitive" },
-            };
+            query.OR = [
+              { title: { contains: value, mode: "insensitive" } },
+              { lesson: { course: { name: { contains: value, mode: "insensitive" } } } },
+            ];
             break;
           default:
             break;
@@ -132,13 +132,39 @@ const AssignmentListPage = async ({
       query.lesson.teacherId = currentUserId!;
       break;
     case "student":
-      query.lesson.class = {
-        students: {
-          some: {
-            id: currentUserId!,
-          },
+      // Get the student's active program first.
+      const enrollment = await prisma.studentEnrollment.findFirst({
+        where: {
+          studentId: currentUserId!,
+          status: "ACTIVE",
         },
-      };
+        select: {
+          programId: true,
+        },
+      });
+
+      if (enrollment) {
+        const registrations = await prisma.studentCourseRegistration.findMany({
+          where: {
+            studentId: currentUserId!,
+            course: {
+              programId: enrollment.programId,
+            },
+          },
+          select: {
+            courseId: true,
+          },
+        });
+
+        const courseIds = registrations.map((registration) => registration.courseId);
+        query.lesson = {
+          ...query.lesson,
+          courseId: { in: courseIds },
+        };
+      } else {
+        // If student has no enrolled program, return empty results
+        query.lesson.courseId = { in: [] };
+      }
       break;
     // parent role removed
     default:
@@ -151,9 +177,8 @@ const AssignmentListPage = async ({
       include: {
         lesson: {
           select: {
-            subject: { select: { name: true } },
+            course: { select: { name: true } },
             teacher: { select: { name: true, surname: true } },
-            class: { select: { name: true } },
           },
         },
       },

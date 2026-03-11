@@ -4,17 +4,20 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEM_PER_PAGE } from "@/lib/settings";
-import { Class, Exam, Prisma, Subject, Teacher } from "@prisma/client";
+import { Course, Exam, Prisma, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
 type ExamList = Exam & {
   lesson: {
-    subject: Subject;
-    class: Class;
+    course: Course;
     teacher: Teacher;
   };
+  submissions?: {
+    id: number;
+    studentId: string;
+  }[];
 };
 
 const ExamListPage = async ({
@@ -30,12 +33,12 @@ const currentUserId = userId;
 
 const columns = [
   {
-    header: "Subject Name",
-    accessor: "name",
+    header: "Title",
+    accessor: "title",
   },
   {
-    header: "Class",
-    accessor: "class",
+    header: "Course",
+    accessor: "course",
   },
   {
     header: "Teacher",
@@ -47,27 +50,23 @@ const columns = [
     accessor: "date",
     className: "hidden md:table-cell",
   },
-  ...(role === "admin" || role === "teacher"
-    ? [
-        {
-          header: "Actions",
-          accessor: "action",
-        },
-      ]
-    : []),
+  {
+    header: "Actions",
+    accessor: "action",
+  },
 ];
 
 const renderRow = (item: ExamList) => (
   <tr
     key={item.id}
-    className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+    className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight dark:border-gray-700 dark:even:bg-gray-800 dark:hover:bg-gray-700"
   >
-    <td className="flex items-center gap-4 p-4">{item.lesson.subject.name}</td>
-    <td>{item.lesson.class.name}</td>
-    <td className="hidden md:table-cell">
+    <td className="flex items-center gap-4 p-4">{item.title}</td>
+    <td className="dark:text-gray-100">{item.lesson.course.name}</td>
+    <td className="hidden md:table-cell dark:text-gray-100">
       {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
     </td>
-    <td className="hidden md:table-cell">
+    <td className="hidden md:table-cell dark:text-gray-100">
       {new Intl.DateTimeFormat("en-US").format(item.startTime)}
     </td>
     <td>
@@ -75,9 +74,23 @@ const renderRow = (item: ExamList) => (
         {role === "teacher" && (
           <Link
             href={`/teacher/submissions?type=exam&id=${item.id}`}
-            className="text-xs bg-lamaSkyLight px-2 py-1 rounded-md"
+            className="text-xs bg-lamaSkyLight dark:bg-blue-700 px-2 py-1 rounded-md hover:opacity-80 transition"
           >
             Submissions
+          </Link>
+        )}
+        {role === "student" && (
+          <Link
+            href={`/student/exam-submission?examId=${item.id}`}
+            className={`text-xs px-3 py-1 rounded-md transition ${
+              item.submissions && item.submissions.length > 0
+                ? "bg-green-200 dark:bg-green-900/30 text-green-800 dark:text-green-400"
+                : "bg-lamaSky dark:bg-blue-600 text-gray-800 dark:text-white hover:bg-lamaSkyLight dark:hover:bg-blue-700"
+            }`}
+          >
+            {item.submissions && item.submissions.length > 0
+              ? "✓ Submitted"
+              : "Submit"}
           </Link>
         )}
         {(role === "admin" || role === "teacher") && (
@@ -104,16 +117,17 @@ const renderRow = (item: ExamList) => (
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
-          case "classId":
-            query.lesson.classId = parseInt(value);
+          case "courseId":
+            query.lesson.courseId = parseInt(value);
             break;
           case "teacherId":
             query.lesson.teacherId = value;
             break;
           case "search":
-            query.lesson.subject = {
-              name: { contains: value, mode: "insensitive" },
-            };
+            query.OR = [
+              { title: { contains: value, mode: "insensitive" } },
+              { lesson: { course: { name: { contains: value, mode: "insensitive" } } } },
+            ];
             break;
           default:
             break;
@@ -131,13 +145,39 @@ const renderRow = (item: ExamList) => (
       query.lesson.teacherId = currentUserId!;
       break;
     case "student":
-      query.lesson.class = {
-        students: {
-          some: {
-            id: currentUserId!,
-          },
+      // Get the student's active program first.
+      const enrollment = await prisma.studentEnrollment.findFirst({
+        where: {
+          studentId: currentUserId!,
+          status: "ACTIVE",
         },
-      };
+        select: {
+          programId: true,
+        },
+      });
+
+      if (enrollment) {
+        const registrations = await prisma.studentCourseRegistration.findMany({
+          where: {
+            studentId: currentUserId!,
+            course: {
+              programId: enrollment.programId,
+            },
+          },
+          select: {
+            courseId: true,
+          },
+        });
+
+        const courseIds = registrations.map((registration) => registration.courseId);
+        query.lesson = {
+          ...query.lesson,
+          courseId: { in: courseIds },
+        };
+      } else {
+        // If student has no enrolled program, return empty results
+        query.lesson.courseId = { in: [] };
+      }
       break;
     // parent role removed
 
@@ -151,11 +191,18 @@ const renderRow = (item: ExamList) => (
       include: {
         lesson: {
           select: {
-            subject: { select: { name: true } },
+            course: { select: { name: true } },
             teacher: { select: { name: true, surname: true } },
-            class: { select: { name: true } },
           },
         },
+        ...(role === "student"
+          ? {
+              submissions: {
+                where: { studentId: currentUserId! },
+                select: { id: true, studentId: true },
+              },
+            }
+          : {}),
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),

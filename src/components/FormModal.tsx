@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  deleteEvent,
   deleteAssignment,
   deleteClass,
   deleteExam,
@@ -8,6 +9,8 @@ import {
   deleteStudent,
   deleteSubject,
   deleteTeacher,
+  deleteProgram,
+  deleteCourse,
 } from "@/lib/actions";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -16,6 +19,13 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
 
 const deleteActionMap = {
   subject: deleteSubject,
@@ -26,8 +36,15 @@ const deleteActionMap = {
   lesson: deleteLesson,
   assignment: deleteAssignment,
   result: deleteSubject,
-  event: deleteSubject,
+  event: deleteEvent,
+  program: deleteProgram,
+  course: deleteCourse,
 };
+
+const unsupportedDeleteAction = async () => ({
+  success: false,
+  error: true,
+});
 
 // USE LAZY LOADING
 
@@ -53,6 +70,15 @@ const LessonForm = dynamic(() => import("./forms/LessonForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const AssignmentForm = dynamic(() => import("./forms/AssignmentForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const EventForm = dynamic(() => import("./forms/EventForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const ProgramForm = dynamic(() => import("./forms/ProgramForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const CourseForm = dynamic(() => import("./forms/CourseForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 
@@ -120,6 +146,30 @@ const forms: {
       relatedData={relatedData}
     />
   ),
+  event: (setOpen, type, data, relatedData) => (
+    <EventForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  program: (setOpen, type, data, relatedData) => (
+    <ProgramForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  course: (setOpen, type, data, relatedData) => (
+    <CourseForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
 };
 
 const FormModal = ({
@@ -134,13 +184,18 @@ const FormModal = ({
     type === "create"
       ? "bg-lamaYellow"
       : type === "update"
-      ? "bg-lamaSky"
+      ? "bg-purple-600"
       : "bg-lamaPurple";
 
   const [open, setOpen] = useState(false);
 
   const Form = () => {
-    const [state, formAction] = useFormState(deleteActionMap[table], {
+    const deleteAction =
+      deleteActionMap[table as keyof typeof deleteActionMap] ||
+      unsupportedDeleteAction;
+    const renderForm = forms[table as keyof typeof forms];
+
+    const [state, formAction] = useFormState(deleteAction, {
       success: false,
       error: false,
     });
@@ -156,6 +211,7 @@ const FormModal = ({
     }, [state, router]);
 
     return type === "delete" && id ? (
+      deleteActionMap[table as keyof typeof deleteActionMap] ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
         <input type="text | number" name="id" value={id} hidden />
         <span className="text-center font-medium">
@@ -165,35 +221,41 @@ const FormModal = ({
           Delete
         </button>
       </form>
+      ) : (
+        <div className="p-4 text-center font-medium text-gray-600">
+          Delete action is not configured for {table}.
+        </div>
+      )
     ) : type === "create" || type === "update" ? (
-      forms[table](setOpen, type, data, relatedData)
+      renderForm ? (
+        renderForm(setOpen, type, data, relatedData)
+      ) : (
+        <div className="p-4 text-center font-medium text-gray-600">
+          Form is not configured for {table}.
+        </div>
+      )
     ) : (
       "Form not found!"
     );
   };
 
   return (
-    <>
-      <button
-        className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
-        onClick={() => setOpen(true)}
-      >
-        <Image src={`/${type}.png`} alt="" width={16} height={16} />
-      </button>
-      {open && (
-        <div className="w-screen h-screen absolute left-0 top-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-md relative w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%]">
-            <Form />
-            <div
-              className="absolute top-4 right-4 cursor-pointer"
-              onClick={() => setOpen(false)}
-            >
-              <Image src="/close.png" alt="" width={14} height={14} />
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
+        >
+          <Image src={`/${type}.png`} alt="" width={16} height={16} />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="w-[90%] md:max-w-[70%] lg:max-w-[60%] xl:max-w-[50%] 2xl:max-w-[40%]">
+        <DialogTitle className="sr-only">{`${type} ${table}`}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Modal for {type} {table}
+        </DialogDescription>
+        <Form />
+      </DialogContent>
+    </Dialog>
   );
 };
 

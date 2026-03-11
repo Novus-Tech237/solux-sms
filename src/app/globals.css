@@ -2,10 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark mode support */
+@layer base {
+  html.dark {
+    @apply bg-gray-950;
+    color-scheme: dark;
+  }
+
+  html.dark body {
+    @apply bg-gray-950 text-gray-100;
+  }
+}
+
 .react-calendar {
   width: 100% !important;
   border: none !important;
   font-family: "Inter", sans-serif !important;
+}
+
+.dark .react-calendar {
+  @apply bg-gray-800 text-gray-100 !important;
 }
 
 .react-calendar__navigation__label__labelText {
@@ -15,6 +31,11 @@
 .react-calendar__tile--active {
   background-color: #c3ebfa !important;
   color: black !important;
+}
+
+.dark .react-calendar__tile--active {
+  background-color: #0369a1 !important;
+  color: white !important;
 }
 
 .rbc-btn-group:first-child {
@@ -36,13 +57,26 @@
   margin-left: 2px !important;
 }
 
+.dark .rbc-btn-group:last-child button {
+  background-color: #3f366a !important;
+  color: #e0e7ff !important;
+}
+
 .rbc-toolbar button.rbc-active {
   background-color: #dbdafe !important;
   box-shadow: none !important;
 }
 
+.dark .rbc-toolbar button.rbc-active {
+  background-color: #4c45710 !important;
+}
+
 .rbc-time-view {
   border-color: #eee !important;
+}
+
+.dark .rbc-time-view {
+  border-color: #374151 !important;
 }
 
 .rbc-time-header {
@@ -65,6 +99,10 @@
   background-color: #f7fdff !important;
 }
 
+.dark .rbc-timeslot-group {
+  background-color: #1e293b !important;
+}
+
 .rbc-day-slot {
   font-size: 14px !important;
 }
@@ -75,6 +113,10 @@
   padding: 10px !important;
   margin: 10px !important;
   width: 99% !important;
+}
+
+.dark .rbc-event {
+  color: white !important;
 }
 
 .rbc-event:nth-child(1) {
@@ -97,6 +139,28 @@
 }
 .rbc-event:nth-child(7) {
   background-color: #f2f1ff !important;
+}
+
+.dark .rbc-event:nth-child(1) {
+  background-color: #0c4a6e !important;
+}
+.dark .rbc-event:nth-child(2) {
+  background-color: #78350f !important;
+}
+.dark .rbc-event:nth-child(3) {
+  background-color: #312e81 !important;
+}
+.dark .rbc-event:nth-child(4) {
+  background-color: #703a52 !important;
+}
+.dark .rbc-event:nth-child(5) {
+  background-color: #0c4a6e !important;
+}
+.dark .rbc-event:nth-child(6) {
+  background-color: #78350f !important;
+}
+.dark .rbc-event:nth-child(7) {
+  background-color: #312e81 !important;
 }
 .rbc-event:nth-child(8) {
   background-color: #fdf2fb !important;

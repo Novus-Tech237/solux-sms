@@ -1,9 +1,55 @@
 "use client";
 
-import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
+import * as Clerk from "@clerk/elements/common";
+import * as SignIn from "@clerk/elements/sign-in";
+import { useSignIn, useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function SignInPage() {
+  const { isLoaded: userLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const router = useRouter();
+
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Redirect already signed-in users to their role dashboard
+  useEffect(() => {
+    if (!userLoaded) return;
+    const role = user?.publicMetadata.role;
+    if (isSignedIn && role) {
+      router.push(`/${role}`);
+    }
+  }, [userLoaded, isSignedIn, user, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn.create({
+        identifier,
+        password,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        // role is read in the useEffect once useUser() refreshes after setActive
+      }
+    } catch (err: any) {
+      setError(err?.errors?.[0]?.longMessage ?? "Invalid username or password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -32,19 +78,6 @@ export default function SignInPage() {
           );
         }
 
-        .stat-card {
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 14px;
-          transition: transform 0.2s ease, background 0.2s ease;
-        }
-
-        .stat-card:hover {
-          transform: translateY(-2px);
-          background: rgba(255, 255, 255, 0.13);
-        }
-
         .badge {
           background: rgba(251, 146, 60, 0.20);
           border: 1px solid rgba(251, 146, 60, 0.45);
@@ -57,11 +90,6 @@ export default function SignInPage() {
           font-weight: 500;
           display: inline-block;
           cursor: default;
-        }
-
-        .divider-line {
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
         }
 
         .float-anim {
@@ -79,17 +107,6 @@ export default function SignInPage() {
         .float-anim:nth-child(4) { animation-delay: 0.55s; }
         .float-anim:nth-child(5) { animation-delay: 0.70s; }
 
-        .back-link {
-          color: rgba(255,255,255,0.65);
-          font-size: 0.82rem;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          transition: color 0.2s;
-          text-decoration: none;
-        }
-        .back-link:hover { color: #fdba74; }
-
         .quote-mark {
           font-family: 'Playfair Display', serif;
           font-size: 5rem;
@@ -97,6 +114,51 @@ export default function SignInPage() {
           color: rgba(251,146,60,0.35);
           display: block;
           margin-bottom: -1.5rem;
+        }
+
+        .sign-in-input {
+          width: 100%;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 10px 14px;
+          font-size: 0.875rem;
+          outline: none;
+          box-shadow: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+          font-family: 'DM Sans', sans-serif;
+          color: #111827;
+          background: #f9fafb;
+        }
+
+        .sign-in-input:focus {
+          border-color: #f97316;
+          box-shadow: none;
+          background: #fff;
+        }
+
+        .sign-in-btn {
+          width: 100%;
+          background: #111827;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          padding: 11px 0;
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.1s;
+          font-family: 'DM Sans', sans-serif;
+          margin-top: 4px;
+        }
+
+        .sign-in-btn:hover:not(:disabled) {
+          background: #1f2937;
+          transform: translateY(-1px);
+        }
+
+        .sign-in-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
       `}</style>
 
@@ -143,9 +205,66 @@ export default function SignInPage() {
           </div>
         </div>
 
-        {/* ── RIGHT PANEL (1/3) ── */}
-        <div className="basis-1/3 flex items-center justify-center bg-white dark:bg-slate-950 min-h-screen">
-          <SignIn />
+        {/* ── RIGHT PANEL (1/3) — full height, no card ── */}
+        <div className="basis-1/3 flex flex-col justify-between bg-white dark:bg-slate-950 min-h-screen px-12 py-10 school-panel">
+
+          {/* Top: branding */}
+          <div>
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>SchooLama</h1>
+          </div>
+
+          {/* Middle: form — vertically centered */}
+          <div className="flex flex-col gap-6 w-full max-w-sm mx-auto">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-orange-400 mb-2">Welcome back</p>
+              <h2 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>
+                Sign in to your account
+              </h2>
+              <p className="text-gray-400 text-sm mt-1">Enter your credentials to continue.</p>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Username</label>
+                <input
+                  className="sign-in-input focus:outline-none focus:ring-0"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  required
+                  autoComplete="username"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Password</label>
+                <input
+                  className="sign-in-input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <button className="sign-in-btn" type="submit" disabled={loading || !isLoaded}>
+                {loading ? "Signing in…" : "Sign In"}
+              </button>
+            </form>
+          </div>
+
+          {/* Bottom: footer */}
+          <p className="text-xs text-gray-300 text-center">
+            © {new Date().getFullYear()} SchooLama. All rights reserved.
+          </p>
+
         </div>
 
       </div>

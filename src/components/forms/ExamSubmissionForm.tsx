@@ -1,0 +1,122 @@
+"use client";
+
+import { CldUploadWidget } from "next-cloudinary";
+import Image from "next/image";
+import { useState } from "react";
+import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
+
+interface ExamSubmissionFormProps {
+  examId: number;
+  examTitle: string;
+  studentId: string;
+}
+
+export default function ExamSubmissionForm({
+  examId,
+  examTitle,
+  studentId,
+}: ExamSubmissionFormProps) {
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!uploadedFileUrl) {
+      toast.error("Please upload your exam submission");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch("/api/exam/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          examId,
+          studentId,
+          fileUrl: uploadedFileUrl,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "Failed to submit exam");
+        return;
+      }
+
+      toast.success("Exam submitted successfully!");
+      setUploadedFileUrl("");
+      router.refresh();
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("An error occurred while submitting");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+          {examTitle}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Upload your completed exam answer sheet
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Exam Submission (PDF)
+        </label>
+        <CldUploadWidget
+          uploadPreset={uploadPreset}
+          options={{
+            resourceType: "raw",
+            maxFiles: 1,
+            clientAllowedFormats: ["pdf"],
+            folder: "school/exam-submissions",
+          }}
+          onSuccess={(result: any, { widget }) => {
+            const secureUrl = result?.info?.secure_url as string;
+            if (secureUrl) {
+              setUploadedFileUrl(secureUrl);
+              toast.success("File uploaded successfully");
+            }
+            widget.close();
+          }}
+        >
+          {({ open }) => (
+            <div
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              onClick={() => open()}
+            >
+              <Image src="/upload.png" alt="" width={32} height={32} />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {uploadedFileUrl ? "PDF uploaded ✓" : "Click to upload or drag and drop"}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-500">PDF only</span>
+            </div>
+          )}
+        </CldUploadWidget>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting || !uploadedFileUrl}
+        className="bg-blue-500 dark:bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+      >
+        {isSubmitting ? "Submitting..." : "Submit Exam"}
+      </button>
+    </form>
+  );
+}

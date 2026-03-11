@@ -4,18 +4,22 @@ import { revalidatePath } from "next/cache";
 import {
   AssignmentSchema,
   ClassSchema,
+  EventSchema,
   ExamSchema,
   LessonSchema,
   StudentSchema,
   SubjectSchema,
   TeacherSchema,
   UpdateDeadlineSchema,
+  ProgramSchema,
+  CourseSchema,
+  BulkProgramSemesterSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { auth } from "@clerk/nextjs/server";
 
-type CurrentState = { success: boolean; error: boolean };
+type CurrentState = { success: boolean; error: boolean; message?: string };
 
 const isCloudinaryUrl = (value?: string | null) => {
   if (!value) return false;
@@ -105,7 +109,9 @@ export const createClass = async (
 ) => {
   try {
     await prisma.class.create({
-      data,
+      data: {
+        name: data.name,
+      },
     });
 
     // revalidatePath("/list/class");
@@ -125,7 +131,9 @@ export const updateClass = async (
       where: {
         id: data.id,
       },
-      data,
+      data: {
+        name: data.name,
+      },
     });
 
     // revalidatePath("/list/class");
@@ -161,9 +169,14 @@ export const createTeacher = async (
   data: TeacherSchema
 ) => {
   try {
+    // Generate a temporary password if none provided
+    const password = data.password && data.password !== "" 
+      ? data.password 
+      : Math.random().toString(36).slice(-12);
+    
     const user = await clerkClient.users.createUser({
       username: data.username,
-      password: data.password,
+      password: password,
       firstName: data.name,
       lastName: data.surname,
       publicMetadata:{role:"teacher"}
@@ -179,9 +192,9 @@ export const createTeacher = async (
         phone: data.phone || null,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType as string,
+        bloodType: data.bloodType || null,
         sex: data.sex,
-        birthday: data.birthday,
+        birthday: data.birthday || null,
         subjects: {
           connect: data.subjects?.map((subjectId: string) => ({
             id: parseInt(subjectId),
@@ -276,11 +289,9 @@ export const createStudent = async (
       username: data.username,
       firstName: data.name,
       lastName: data.surname,
+      password: data.password,
       publicMetadata: { role: "student" },
     };
-    if (data.password && data.password !== "") {
-      createUserPayload.password = data.password;
-    }
 
     const user = await clerkClient.users.createUser(createUserPayload);
 
@@ -294,14 +305,22 @@ export const createStudent = async (
         phone: data.phone || null,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType,
         sex: data.sex,
         birthday: data.birthday,
         semester: data.semester,
-        ...(data.gradeId ? { gradeId: data.gradeId } : {}),
-        ...(data.classId ? { classId: data.classId } : {}),
       },
     });
+
+    // Create student enrollment in program if programId is provided
+    if (data.programId) {
+      await prisma.studentEnrollment.create({
+        data: {
+          studentId: user.id,
+          programId: data.programId,
+          status: "ACTIVE",
+        },
+      });
+    }
 
     // revalidatePath("/list/students");
     return { success: true, error: false };
@@ -339,12 +358,9 @@ export const updateStudent = async (
         phone: data.phone || null,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType,
         sex: data.sex,
         birthday: data.birthday,
         semester: data.semester,
-        ...(data.gradeId ? { gradeId: data.gradeId } : {}),
-        ...(data.classId ? { classId: data.classId } : {}),
       },
     });
     // revalidatePath("/list/students");
@@ -526,29 +542,15 @@ export const createLesson = async (
     }
 
     if (role === "teacher") {
-      const assignedSubject = await prisma.teacher.findFirst({
+      const assignedCourse = await prisma.course.findFirst({
         where: {
-          id: userId!,
-          subjects: {
-            some: { id: data.subjectId },
-          },
+          id: data.courseId,
+          teacherId: userId!,
         },
         select: { id: true },
       });
 
-      if (!assignedSubject) {
-        return { success: false, error: true };
-      }
-
-      const assignedClass = await prisma.class.findFirst({
-        where: {
-          id: data.classId,
-          supervisorId: userId!,
-        },
-        select: { id: true },
-      });
-
-      if (!assignedClass) {
+      if (!assignedCourse) {
         return { success: false, error: true };
       }
     }
@@ -561,8 +563,7 @@ export const createLesson = async (
         endTime: data.endTime,
         pdfUrl: data.pdfUrl,
         videoUrl: data.videoUrl || null,
-        subjectId: data.subjectId,
-        classId: data.classId,
+        courseId: data.courseId,
         teacherId,
       },
     });
@@ -610,8 +611,7 @@ export const updateLesson = async (
         endTime: data.endTime,
         pdfUrl: data.pdfUrl,
         videoUrl: data.videoUrl || null,
-        subjectId: data.subjectId,
-        classId: data.classId,
+        courseId: data.courseId,
       },
     });
 
@@ -771,6 +771,93 @@ export const deleteAssignment = async (
   }
 };
 
+export const createEvent = async (
+  currentState: CurrentState,
+  data: EventSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  try {
+    if (role !== "admin") {
+      return { success: false, error: true };
+    }
+
+    await prisma.event.create({
+      data: {
+        title: data.title,
+        description: data.description || "No description",
+        startTime: data.startTime,
+        endTime: data.endTime,
+        recurrence: data.recurrence,
+      },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const updateEvent = async (
+  currentState: CurrentState,
+  data: EventSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  try {
+    if (!data.id || role !== "admin") {
+      return { success: false, error: true };
+    }
+
+    await prisma.event.update({
+      where: { id: data.id },
+      data: {
+        title: data.title,
+        description: data.description || "No description",
+        startTime: data.startTime,
+        endTime: data.endTime,
+        recurrence: data.recurrence,
+        classId: null,
+      },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const deleteEvent = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = Number(data.get("id"));
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  try {
+    if (role !== "admin") {
+      return { success: false, error: true };
+    }
+
+    await prisma.event.delete({
+      where: { id },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
 export const updateWorkDeadline = async (
   currentState: CurrentState,
   data: UpdateDeadlineSchema
@@ -822,3 +909,545 @@ export const updateWorkDeadline = async (
     return { success: false, error: true };
   }
 };
+
+// Enrollment Actions
+export const enrollInProgram = async (programId: number) => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return { success: false, error: true };
+    }
+
+    // Verify program exists
+    const program = await prisma.program.findUnique({
+      where: { id: programId },
+      select: { id: true },
+    });
+
+    if (!program) {
+      return { success: false, error: true };
+    }
+
+    const activeEnrollment = await prisma.studentEnrollment.findFirst({
+      where: {
+        studentId: userId,
+        status: "ACTIVE",
+      },
+      select: {
+        id: true,
+        programId: true,
+      },
+    });
+
+    if (activeEnrollment?.programId === programId) {
+      return { success: true, error: false };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (activeEnrollment) {
+        await tx.studentEnrollment.update({
+          where: { id: activeEnrollment.id },
+          data: { status: "UNENROLLED" },
+        });
+      }
+
+      // Course registrations are scoped to the active program, so reset them when changing programs.
+      await tx.studentCourseRegistration.deleteMany({
+        where: { studentId: userId },
+      });
+
+      await tx.studentEnrollment.upsert({
+        where: {
+          studentId_programId: {
+            studentId: userId,
+            programId,
+          },
+        },
+        update: {
+          status: "ACTIVE",
+        },
+        create: {
+          studentId: userId,
+          programId,
+          status: "ACTIVE",
+        },
+      });
+    });
+
+    revalidatePath("/student");
+    revalidatePath("/student/available-courses");
+    revalidatePath("/list");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const unenrollFromProgram = async (programId: number) => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return { success: false, error: true };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.studentEnrollment.update({
+        where: {
+          studentId_programId: {
+            studentId: userId,
+            programId,
+          },
+        },
+        data: {
+          status: "UNENROLLED",
+        },
+      });
+
+      await tx.studentCourseRegistration.deleteMany({
+        where: { studentId: userId },
+      });
+    });
+
+    revalidatePath("/student");
+    revalidatePath("/student/available-courses");
+    revalidatePath("/list");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const getAvailablePrograms = async () => {
+  try {
+    const programs = await prisma.program.findMany({
+      include: {
+        courses: {
+          include: {
+            teacher: {
+              select: {
+                name: true,
+                surname: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    return programs;
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+
+export const getStudentEnrolledProgram = async () => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return null;
+    }
+
+    const enrollment = await prisma.studentEnrollment.findFirst({
+      where: {
+        studentId: userId,
+        status: "ACTIVE",
+      },
+      include: {
+        program: {
+          include: {
+            courses: {
+              include: {
+                lessons: {
+                  include: {
+                    teacher: {
+                      select: {
+                        name: true,
+                        surname: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return enrollment?.program || null;
+  } catch (err) {
+    console.log(err);
+    return null;
+  }
+};
+
+export const getStudentProgramCoursesForRegistration = async () => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return null;
+    }
+
+    const enrollment = await prisma.studentEnrollment.findFirst({
+      where: {
+        studentId: userId,
+        status: "ACTIVE",
+      },
+      include: {
+        program: {
+          include: {
+            courses: {
+              include: {
+                teacher: {
+                  select: {
+                    name: true,
+                    surname: true,
+                  },
+                },
+              },
+              orderBy: {
+                name: "asc",
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!enrollment) {
+      return null;
+    }
+
+    const registrations = await prisma.studentCourseRegistration.findMany({
+      where: {
+        studentId: userId,
+        course: {
+          programId: enrollment.programId,
+        },
+      },
+      select: {
+        courseId: true,
+      },
+    });
+
+    return {
+      program: enrollment.program,
+      registeredCourseIds: registrations.map((registration) =>
+        registration.courseId
+      ),
+    };
+  } catch (err) {
+    console.log(err);
+    return null;
+  }
+};
+
+export const registerStudentCourse = async (courseId: number) => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return { success: false, error: true };
+    }
+
+    const enrollment = await prisma.studentEnrollment.findFirst({
+      where: {
+        studentId: userId,
+        status: "ACTIVE",
+      },
+      select: {
+        programId: true,
+      },
+    });
+
+    if (!enrollment) {
+      return { success: false, error: true, message: "Enroll in a program first." };
+    }
+
+    const course = await prisma.course.findFirst({
+      where: {
+        id: courseId,
+        programId: enrollment.programId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!course) {
+      return { success: false, error: true, message: "Course is not in your program." };
+    }
+
+    await prisma.studentCourseRegistration.upsert({
+      where: {
+        studentId_courseId: {
+          studentId: userId,
+          courseId,
+        },
+      },
+      update: {},
+      create: {
+        studentId: userId,
+        courseId,
+      },
+    });
+
+    revalidatePath("/student");
+    revalidatePath("/student/available-courses");
+    revalidatePath("/list/lessons");
+    revalidatePath("/list/exams");
+    revalidatePath("/list/assignments");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const unregisterStudentCourse = async (courseId: number) => {
+  const { userId } = auth();
+
+  try {
+    if (!userId) {
+      return { success: false, error: true };
+    }
+
+    await prisma.studentCourseRegistration.deleteMany({
+      where: {
+        studentId: userId,
+        courseId,
+      },
+    });
+
+    revalidatePath("/student");
+    revalidatePath("/student/available-courses");
+    revalidatePath("/list/lessons");
+    revalidatePath("/list/exams");
+    revalidatePath("/list/assignments");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const createProgram = async (
+  currentState: CurrentState,
+  data: ProgramSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  try {
+    await prisma.program.create({
+      data: {
+        name: data.name,
+        semester: data.semester,
+        description: data.description || null,
+      },
+    });
+
+    revalidatePath("/admin/programs");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const updateProgram = async (
+  currentState: CurrentState,
+  data: ProgramSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  try {
+    await prisma.program.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        semester: data.semester,
+        description: data.description || null,
+      },
+    });
+
+    revalidatePath("/admin/programs");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const deleteProgram = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  const id = Number(data.get("id"));
+
+  try {
+    await prisma.program.delete({ where: { id } });
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const updateAllProgramSemesters = async (
+  currentState: CurrentState,
+  data: BulkProgramSemesterSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true, message: "Unauthorized" };
+  }
+
+  try {
+    const programs = await prisma.program.findMany({
+      select: { name: true },
+    });
+
+    const counts = new Map<string, number>();
+    for (const program of programs) {
+      counts.set(program.name, (counts.get(program.name) ?? 0) + 1);
+    }
+
+    const duplicateNames = Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name);
+
+    if (duplicateNames.length > 0) {
+      return {
+        success: false,
+        error: true,
+        message:
+          "Bulk update blocked because multiple programs share the same name. Update them individually first.",
+      };
+    }
+
+    await prisma.program.updateMany({
+      data: {
+        semester: data.semester,
+      },
+    });
+
+    revalidatePath("/list/programs");
+    revalidatePath("/admin/programs");
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return {
+      success: false,
+      error: true,
+      message: "Failed to update all program semesters",
+    };
+  }
+};
+
+export const createCourse = async (
+  currentState: CurrentState,
+  data: CourseSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  try {
+    await prisma.course.create({
+      data: {
+        name: data.name,
+        description: data.description || null,
+        teacherId: data.teacherId,
+        programId: data.programId,
+      },
+    });
+
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const updateCourse = async (
+  currentState: CurrentState,
+  data: CourseSchema
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  try {
+    await prisma.course.update({
+      where: { id: data.id },
+      data: {
+        name: data.name,
+        description: data.description || null,
+        teacherId: data.teacherId,
+      },
+    });
+
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+
+export const deleteCourse = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const { sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+  if (role !== "admin") {
+    return { success: false, error: true };
+  }
+
+  const id = Number(data.get("id"));
+
+  try {
+    await prisma.course.delete({ where: { id } });
+    return { success: true, error: false };
+  } catch (err) {
+    console.log(err);
+    return { success: false, error: true };
+  }
+};
+

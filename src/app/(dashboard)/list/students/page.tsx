@@ -31,11 +31,7 @@ const StudentListPage = async ({
       accessor: "studentId",
       className: "hidden md:table-cell",
     },
-    {
-      header: "Grade",
-      accessor: "grade",
-      className: "hidden md:table-cell",
-    },
+  
     {
       header: "Phone",
       accessor: "phone",
@@ -70,12 +66,12 @@ const StudentListPage = async ({
           className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
         />
         <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name}</h3>
-          <p className="text-xs text-gray-500">{item.class.name}</p>
+          <h3 className="font-semibold">{item.name} {item.surname}</h3>
+          {/* <p className="text-xs text-gray-500">{item.class.name}</p> */}
         </div>
       </td>
       <td className="hidden md:table-cell">{item.username}</td>
-      <td className="hidden md:table-cell">{item.class.name[0]}</td>
+      {/* <td className="hidden md:table-cell">{item.class.name[0]}</td> */}
       <td className="hidden md:table-cell">{item.phone}</td>
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
@@ -109,16 +105,51 @@ const StudentListPage = async ({
       if (value !== undefined) {
         switch (key) {
           case "teacherId":
-            query.class = {
-              lessons: {
-                some: {
+            query.courseRegistrations = {
+              some: {
+                course: {
                   teacherId: value,
                 },
               },
             };
             break;
           case "search":
-            query.name = { contains: value, mode: "insensitive" };
+            const searchValue = value.trim();
+            const nameParts = searchValue.split(/\s+/).filter(Boolean);
+            const containsInsensitive = (text: string) => ({
+              contains: text,
+              mode: "insensitive" as const,
+            });
+
+            query.OR = [
+              { name: containsInsensitive(searchValue) },
+              { surname: containsInsensitive(searchValue) },
+              { username: containsInsensitive(searchValue) },
+              ...(nameParts.length >= 2
+                ? [
+                    {
+                      AND: [
+                        {
+                          name: containsInsensitive(nameParts[0]),
+                        },
+                        {
+                          surname: containsInsensitive(nameParts.slice(1).join(" ")),
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          name: containsInsensitive(nameParts.slice(1).join(" ")),
+                        },
+                        {
+                          surname: containsInsensitive(nameParts[0]),
+                        },
+                      ],
+                    },
+                  ]
+                : []),
+            ];
             break;
           default:
             break;

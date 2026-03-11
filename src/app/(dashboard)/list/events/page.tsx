@@ -8,7 +8,83 @@ import { Class, Event, Prisma } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 
-type EventList = Event & { class: Class };
+type EventRecurrenceValue = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+
+const recurrenceLabel: Record<EventRecurrenceValue, string> = {
+  NONE: "Don't Repeat",
+  DAILY: "Every day",
+  WEEKLY: "Every week",
+  MONTHLY: "Every month",
+  YEARLY: "Every year",
+};
+
+type EventList = Event & {
+  class: Class | null;
+  occurrenceStart?: Date;
+  occurrenceEnd?: Date;
+};
+
+const toStartOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+
+const toEndOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+const createOccurrenceDateTime = (targetDate: Date, sourceDateTime: Date) =>
+  new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+    sourceDateTime.getHours(),
+    sourceDateTime.getMinutes(),
+    sourceDateTime.getSeconds(),
+    sourceDateTime.getMilliseconds()
+  );
+
+const differenceInDays = (later: Date, earlier: Date) =>
+  Math.floor((later.getTime() - earlier.getTime()) / (1000 * 60 * 60 * 24));
+
+const occursOnDate = (
+  eventStart: Date,
+  recurrence: EventRecurrenceValue,
+  date: Date
+) => {
+  const normalizedEventStart = toStartOfDay(eventStart);
+  const normalizedDate = toStartOfDay(date);
+
+  if (normalizedDate < normalizedEventStart) {
+    return false;
+  }
+
+  switch (recurrence) {
+    case "NONE":
+      return normalizedDate.getTime() === normalizedEventStart.getTime();
+    case "DAILY":
+      return true;
+    case "WEEKLY": {
+      const daysDiff = differenceInDays(normalizedDate, normalizedEventStart);
+      return daysDiff % 7 === 0;
+    }
+    case "MONTHLY": {
+      if (date.getDate() !== eventStart.getDate()) {
+        return false;
+      }
+
+      const monthDiff =
+        (date.getFullYear() - eventStart.getFullYear()) * 12 +
+        (date.getMonth() - eventStart.getMonth());
+      return monthDiff >= 0;
+    }
+    case "YEARLY":
+      return (
+        date.getMonth() === eventStart.getMonth() &&
+        date.getDate() === eventStart.getDate() &&
+        date.getFullYear() >= eventStart.getFullYear()
+      );
+    default:
+      return normalizedDate.getTime() === normalizedEventStart.getTime();
+  }
+};
 
 const EventListPage = async ({
   searchParams,
@@ -44,6 +120,11 @@ const EventListPage = async ({
       accessor: "endTime",
       className: "hidden md:table-cell",
     },
+    {
+      header: "Recurrence",
+      accessor: "recurrence",
+      className: "hidden md:table-cell",
+    },
     ...(role === "admin"
       ? [
           {
@@ -62,21 +143,26 @@ const EventListPage = async ({
       <td className="flex items-center gap-4 p-4">{item.title}</td>
       <td>{item.class?.name || "-"}</td>
       <td className="hidden md:table-cell">
-        {new Intl.DateTimeFormat("en-US").format(item.startTime)}
+        {new Intl.DateTimeFormat("en-US").format(
+          item.occurrenceStart || item.startTime
+        )}
       </td>
       <td className="hidden md:table-cell">
-        {item.startTime.toLocaleTimeString("en-US", {
+        {(item.occurrenceStart || item.startTime).toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
       </td>
       <td className="hidden md:table-cell">
-        {item.endTime.toLocaleTimeString("en-US", {
+        {(item.occurrenceEnd || item.endTime).toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
+      </td>
+      <td className="hidden md:table-cell">
+        {recurrenceLabel[item.recurrence as EventRecurrenceValue]}
       </td>
       <td>
         <div className="flex items-center gap-2">
@@ -92,6 +178,7 @@ const EventListPage = async ({
   );
 
   const { page, ...queryParams } = searchParams;
+  const selectedDate = searchParams.date ? new Date(searchParams.date) : null;
 
   const p = page ? parseInt(page) : 1;
 
@@ -114,30 +201,92 @@ const EventListPage = async ({
   }
 
   // ROLE CONDITIONS
+  // Class no longer has a lessons relation, so only student-scoped class filtering is valid.
+  if (role === "student") {
+    query.OR = [
+      { classId: null },
+      {
+        class: {
+          students: {
+            some: {
+              id: currentUserId!,
+            },
+          },
+        },
+      },
+    ];
+  }
 
-  const roleConditions = {
-    teacher: { lessons: { some: { teacherId: currentUserId! } } },
-    student: { students: { some: { id: currentUserId! } } },
-  };
+  let data: EventList[] = [];
+  let count = 0;
 
-  query.OR = [
-    { classId: null },
-    {
-      class: roleConditions[role as keyof typeof roleConditions] || {},
-    },
-  ];
+  if (selectedDate && !Number.isNaN(selectedDate.getTime())) {
+    const dayStart = toStartOfDay(selectedDate);
+    const dayEnd = toEndOfDay(selectedDate);
 
-  const [data, count] = await prisma.$transaction([
-    prisma.event.findMany({
-      where: query,
+    const rawEvents = await prisma.event.findMany({
+      where: {
+        ...query,
+        startTime: {
+          lte: dayEnd,
+        },
+      },
       include: {
         class: true,
       },
-      take: ITEM_PER_PAGE,
-      skip: ITEM_PER_PAGE * (p - 1),
-    }),
-    prisma.event.count({ where: query }),
-  ]);
+      orderBy: {
+        startTime: "asc",
+      },
+    });
+
+    const occurrences = rawEvents
+      .filter((event) =>
+        occursOnDate(
+          event.startTime,
+          event.recurrence as EventRecurrenceValue,
+          selectedDate
+        )
+      )
+      .map((event) => {
+        const occurrenceStart = createOccurrenceDateTime(selectedDate, event.startTime);
+        const durationMs = event.endTime.getTime() - event.startTime.getTime();
+        const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+
+        return {
+          ...event,
+          occurrenceStart,
+          occurrenceEnd,
+        };
+      })
+      .filter(
+        (event) =>
+          (event.occurrenceStart as Date) <= dayEnd &&
+          (event.occurrenceEnd as Date) >= dayStart
+      )
+      .sort(
+        (a, b) =>
+          (a.occurrenceStart as Date).getTime() -
+          (b.occurrenceStart as Date).getTime()
+      );
+
+    count = occurrences.length;
+    data = occurrences.slice(ITEM_PER_PAGE * (p - 1), ITEM_PER_PAGE * p);
+  } else {
+    const result = await prisma.$transaction([
+      prisma.event.findMany({
+        where: query,
+        include: {
+          class: true,
+        },
+        take: ITEM_PER_PAGE,
+        skip: ITEM_PER_PAGE * (p - 1),
+      }),
+      prisma.event.count({ where: query }),
+    ]);
+
+    data = result[0];
+    count = result[1];
+  }
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">

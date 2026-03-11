@@ -30,6 +30,12 @@ const menuItems = [
         href: "/list/subjects",
         visible: ["admin"],
       },
+        {
+          icon: "/class.png",
+          label: "Programs",
+          href: "/list/programs",
+          visible: ["admin"],
+        },
       {
         icon: "/class.png",
         label: "Classes",
@@ -103,7 +109,18 @@ const menuItems = [
 const Menu = async () => {
   const user = await currentUser();
   const role = user?.publicMetadata.role as string;
-  return <MenuClient menuItems={menuItems} role={role} />;
+  
+  // Update Home link based on role
+  const updatedMenuItems = menuItems.map(group => ({
+    ...group,
+    items: group.items.map(item => 
+      item.label === "Home" && role
+        ? { ...item, href: `/${role}` }
+        : item
+    )
+  }));
+  
+  return <MenuClient menuItems={updatedMenuItems} role={role} />;
 };
 
 export default Menu;

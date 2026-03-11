@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { CldUploadWidget } from "next-cloudinary";
+import { useSettings } from "@/context/SettingsContext";
 
 const StudentForm = ({
   type,
@@ -33,6 +34,7 @@ const StudentForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
+  const { t } = useSettings();
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
 
   const {
@@ -63,112 +65,99 @@ const StudentForm = ({
 
   useEffect(() => {
     if (state.success) {
-      toast(`Student has been ${type === "create" ? "created" : "updated"}!`);
+      toast(`${t("updatedSuccessfully")}`);
       setOpen(false);
       router.refresh();
     }
-  }, [state, router, type, setOpen]);
+  }, [state, router, type, setOpen, t]);
 
   const { grades, classes } = relatedData;
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create a new student" : "Update the student"}
+        {type === "create" ? t("createNewStudent") : t("updateStudent")}
       </h1>
       <span className="text-xs text-gray-400 font-medium">
-        Authentication Information
+        {t("authenticationInformation")}
       </span>
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
-          label="Username"
+          label={t("username")}
           name="username"
           defaultValue={data?.username}
           register={register}
           error={errors?.username}
         />
         <InputField
-          label="Email"
+          label={t("email")}
           name="email"
           defaultValue={data?.email}
           register={register}
           error={errors?.email}
         />
-        {type === "update" && (
-          <InputField
-            label="Password"
-            name="password"
-            type="password"
-            defaultValue={data?.password}
-            register={register}
-            error={errors?.password}
-          />
-        )}
+        <InputField
+          label={t("password")}
+          name="password"
+          type="password"
+          defaultValue={data?.password}
+          register={register}
+          error={errors?.password}
+        />
       </div>
       <span className="text-xs text-gray-400 font-medium">
-        Personal Information
+        {t("personalInformation")}
       </span>
-      {type === "update" && (
-        <CldUploadWidget
-          uploadPreset={uploadPreset}
-          onSuccess={(result, { widget }) => {
-            setImg(result.info);
-            widget.close();
-          }}
-        >
-          {({ open }) => {
-            return (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={28} height={28} />
-                <span>Upload a photo</span>
-              </div>
-            );
-          }}
-        </CldUploadWidget>
-      )}
+      <CldUploadWidget
+        uploadPreset={uploadPreset}
+        onSuccess={(result, { widget }) => {
+          setImg(result.info);
+          widget.close();
+        }}
+      >
+        {({ open }) => {
+          return (
+            <div
+              className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
+              onClick={() => open()}
+            >
+              <Image src="/upload.png" alt="" width={28} height={28} />
+              <span>{t("uploadPhoto")}</span>
+            </div>
+          );
+        }}
+      </CldUploadWidget>
       <div className="flex justify-between flex-wrap gap-4">
         <InputField
-          label="First Name"
+          label={t("firstName")}
           name="name"
           defaultValue={data?.name}
           register={register}
           error={errors.name}
         />
         <InputField
-          label="Last Name"
+          label={t("lastName")}
           name="surname"
           defaultValue={data?.surname}
           register={register}
           error={errors.surname}
         />
         <InputField
-          label="Phone"
+          label={t("phone")}
           name="phone"
           defaultValue={data?.phone}
           register={register}
           error={errors.phone}
         />
         <InputField
-          label="Address"
+          label={t("address")}
           name="address"
           defaultValue={data?.address}
           register={register}
           error={errors.address}
         />
-        {type === "update" && (
-          <InputField
-            label="Blood Type"
-            name="bloodType"
-            defaultValue={data?.bloodType}
-            register={register}
-            error={errors.bloodType}
-          />
-        )}
         <InputField
-          label="Birthday"
+          label={t("birthday")}
           name="birthday"
           defaultValue={data?.birthday ? data?.birthday.toISOString().split("T")[0] : ""}
           register={register}
@@ -185,7 +174,7 @@ const StudentForm = ({
         />
         {data && (
           <InputField
-            label="Id"
+            label={t("id")}
             name="id"
             defaultValue={data?.id}
             register={register}
@@ -209,55 +198,26 @@ const StudentForm = ({
             </p>
           )}
         </div>
-        {type === "update" && (
+        {type === "create" && (
           <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Grade</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("gradeId")}
-            defaultValue={data?.gradeId}
-          >
-            {grades.map((grade: { id: number; level: number }) => (
-              <option value={grade.id} key={grade.id}>
-                {grade.level}
-              </option>
-            ))}
-          </select>
-          {errors.gradeId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.gradeId.message.toString()}
-            </p>
-          )}
-          </div>
-        )}
-        {type === "update" && (
-          <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Class</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("classId")}
-            defaultValue={data?.classId}
-          >
-            {classes.map(
-              (classItem: {
-                id: number;
-                name: string;
-                capacity: number;
-                _count: { students: number };
-              }) => (
-                <option value={classItem.id} key={classItem.id}>
-                  ({classItem.name} -{" "}
-                  {classItem._count.students + "/" + classItem.capacity}{" "}
-                  Capacity)
+            <label className="text-xs text-gray-500">Program</label>
+            <select
+              className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+              {...register("programId")}
+              defaultValue={data?.programId || ""}
+            >
+              <option value="">Select a program</option>
+              {relatedData?.programs?.map((program: { id: number; name: string }) => (
+                <option value={program.id} key={program.id}>
+                  {program.name}
                 </option>
-              )
+              ))}
+            </select>
+            {errors.programId?.message && (
+              <p className="text-xs text-red-400">
+                {errors.programId.message.toString()}
+              </p>
             )}
-          </select>
-          {errors.classId?.message && (
-            <p className="text-xs text-red-400">
-              {errors.classId.message.toString()}
-            </p>
-          )}
           </div>
         )}
       </div>

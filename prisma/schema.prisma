@@ -34,6 +34,8 @@ model Student {
   assignmentSubmissions AssignmentSubmission[]
   examSubmissions ExamSubmission[]
   birthday    DateTime
+  enrollments StudentEnrollment[]
+  courseRegistrations StudentCourseRegistration[]
 }
 
 model Teacher {
@@ -45,36 +47,87 @@ model Teacher {
   phone     String?   @unique
   address   String
   img       String?
-  bloodType String
+  bloodType String?
   sex       UserSex
   createdAt DateTime  @default(now())
   subjects  Subject[]
   lessons   Lesson[]
-  classes   Class[]
-  birthday  DateTime
+  birthday  DateTime?
+  courses   Course[]
 }
 
 // Parent model removed
+
+model Program {
+  id          Int       @id @default(autoincrement())
+  name        String
+  semester    String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  courses      Course[]
+  enrollments  StudentEnrollment[]
+
+  @@unique([name, semester])
+}
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+
+  programId   Int
+  program     Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     Teacher @relation(fields: [teacherId], references: [id])
+  lessons     Lesson[]
+  registrations StudentCourseRegistration[]
+
+  @@unique([programId, name])
+}
+
+model StudentCourseRegistration {
+  id           Int      @id @default(autoincrement())
+  registeredAt DateTime @default(now())
+
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId     Int
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+}
+
+model StudentEnrollment {
+  id            Int       @id @default(autoincrement())
+  enrollmentDate DateTime  @default(now())
+  status        EnrollmentStatus @default(ACTIVE)
+
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  programId     Int
+  program       Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, programId])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  UNENROLLED
+}
 
 model Grade {
   id    Int @id @default(autoincrement())
   level Int @unique
 
   students Student[]
-  classess Class[]
 }
 
 model Class {
   id       Int    @id @default(autoincrement())
   name     String @unique
-  capacity Int
-
-  supervisorId  String?
-  supervisor    Teacher?       @relation(fields: [supervisorId], references: [id])
-  lessons       Lesson[]
   students      Student[]
-  gradeId       Int
-  grade         Grade          @relation(fields: [gradeId], references: [id])
   events        Event[]
   announcements Announcement[]
 }
@@ -83,7 +136,6 @@ model Subject {
   id       Int       @id @default(autoincrement())
   name     String    @unique
   teachers Teacher[]
-  lessons  Lesson[]
 }
 
 model Lesson {
@@ -95,10 +147,8 @@ model Lesson {
   pdfUrl    String?
   videoUrl  String?
 
-  subjectId   Int
-  subject     Subject      @relation(fields: [subjectId], references: [id])
-  classId     Int
-  class       Class        @relation(fields: [classId], references: [id])
+  courseId    Int?
+  course      Course?      @relation(fields: [courseId], references: [id])
   teacherId   String
   teacher     Teacher      @relation(fields: [teacherId], references: [id])
   exams       Exam[]
@@ -185,6 +235,7 @@ model Event {
   description String
   startTime   DateTime
   endTime     DateTime
+  recurrence  EventRecurrence @default(NONE)
 
   classId Int?
   class   Class? @relation(fields: [classId], references: [id])
@@ -211,4 +262,12 @@ enum Day {
   WEDNESDAY
   THURSDAY
   FRIDAY
+}
+
+enum EventRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }

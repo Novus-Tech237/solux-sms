@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Teacher" ALTER COLUMN "bloodType" DROP NOT NULL,
+ALTER COLUMN "birthday" DROP NOT NULL;

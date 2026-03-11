@@ -17,18 +17,13 @@ const SingleTeacherPage = async ({
   const { sessionClaims } = auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  const teacher:
-    | (Teacher & {
-        _count: { subjects: number; lessons: number; classes: number };
-      })
-    | null = await prisma.teacher.findUnique({
+  const teacher = await prisma.teacher.findUnique({
     where: { id },
     include: {
+      courses: true,
       _count: {
         select: {
-          subjects: true,
-          lessons: true,
-          classes: true,
+          courses: true,
         },
       },
     },
@@ -102,9 +97,9 @@ const SingleTeacherPage = async ({
               />
               <div className="">
                 <h1 className="text-xl font-semibold">
-                  {teacher._count.subjects}
+                  {teacher._count.courses}
                 </h1>
-                <span className="text-sm text-gray-400">Branches</span>
+                <span className="text-sm text-gray-400">Courses</span>
               </div>
             </div>
             {/* CARD */}
@@ -118,9 +113,9 @@ const SingleTeacherPage = async ({
               />
               <div className="">
                 <h1 className="text-xl font-semibold">
-                  {teacher._count.lessons}
+                  {teacher.courses?.length ?? 0}
                 </h1>
-                <span className="text-sm text-gray-400">Lessons</span>
+                <span className="text-sm text-gray-400">Teaching</span>
               </div>
             </div>
             {/* CARD */}
@@ -134,9 +129,9 @@ const SingleTeacherPage = async ({
               />
               <div className="">
                 <h1 className="text-xl font-semibold">
-                  {teacher._count.classes}
+                  Active
                 </h1>
-                <span className="text-sm text-gray-400">Classes</span>
+                <span className="text-sm text-gray-400">Status</span>
               </div>
             </div>
           </div>
@@ -154,30 +149,24 @@ const SingleTeacherPage = async ({
           <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
            <Link
               className="p-3 rounded-md bg-lamaSkyLight"
-              href={`/list/classes?supervisorId=${teacher.id}`}
-            >
-              Teacher&apos;s Classes
-            </Link>
-            <Link
-              className="p-3 rounded-md bg-lamaPurpleLight"
-              href={`/list/students?teacherId=${teacher.id}`}
-            >
-              Teacher&apos;s Students
-            </Link>
-            <Link
-              className="p-3 rounded-md bg-lamaYellowLight"
               href={`/list/lessons?teacherId=${teacher.id}`}
             >
               Teacher&apos;s Lessons
             </Link>
             <Link
-              className="p-3 rounded-md bg-pink-50"
+              className="p-3 rounded-md bg-lamaPurpleLight"
+              href={`/list/students`}
+            >
+              All Students
+            </Link>
+            <Link
+              className="p-3 rounded-md bg-lamaYellowLight"
               href={`/list/exams?teacherId=${teacher.id}`}
             >
               Teacher&apos;s Exams
             </Link>
             <Link
-              className="p-3 rounded-md bg-lamaSkyLight"
+              className="p-3 rounded-md bg-pink-50"
               href={`/list/assignments?teacherId=${teacher.id}`}
             >
               Teacher&apos;s Assignments

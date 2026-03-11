@@ -31,8 +31,7 @@ const TeacherSubmissionsPage = async ({
         lesson: {
           select: {
             name: true,
-            subject: { select: { name: true } },
-            class: { select: { name: true } },
+            course: { select: { name: true } },
           },
         },
         submissions: {
@@ -61,7 +60,7 @@ const TeacherSubmissionsPage = async ({
           <div>
             <h1 className="text-lg font-semibold">Assignment Submissions</h1>
             <p className="text-sm text-gray-500">
-              {assignment.title} · {assignment.lesson.subject.name} · {assignment.lesson.class.name}
+              {assignment.title} · {assignment.lesson.course.name}
             </p>
           </div>
           <a
@@ -116,8 +115,7 @@ const TeacherSubmissionsPage = async ({
       lesson: {
         select: {
           name: true,
-          subject: { select: { name: true } },
-          class: { select: { name: true } },
+          course: { select: { name: true } },
         },
       },
       submissions: {
@@ -146,7 +144,7 @@ const TeacherSubmissionsPage = async ({
         <div>
           <h1 className="text-lg font-semibold">Exam Submissions</h1>
           <p className="text-sm text-gray-500">
-            {exam.title} · {exam.lesson.subject.name} · {exam.lesson.class.name}
+            {exam.title} · {exam.lesson.course.name}
           </p>
         </div>
         <a

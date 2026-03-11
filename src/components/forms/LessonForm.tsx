@@ -194,38 +194,20 @@ const LessonForm = ({
         )}
 
         <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Subject</label>
+          <label className="text-xs text-gray-500">Course</label>
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("subjectId")}
-            defaultValue={data?.subjectId}
+            {...register("courseId")}
+            defaultValue={data?.courseId}
           >
-            {subjects.map((subject: { id: number; name: string }) => (
-              <option value={subject.id} key={subject.id}>
-                {subject.name}
+            {(relatedData?.courses || []).map((course: { id: number; name: string }) => (
+              <option value={course.id} key={course.id}>
+                {course.name}
               </option>
             ))}
           </select>
-          {errors.subjectId?.message && (
-            <p className="text-xs text-red-400">{errors.subjectId.message.toString()}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Class</label>
-          <select
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("classId")}
-            defaultValue={data?.classId}
-          >
-            {classes.map((schoolClass: { id: number; name: string }) => (
-              <option value={schoolClass.id} key={schoolClass.id}>
-                {schoolClass.name}
-              </option>
-            ))}
-          </select>
-          {errors.classId?.message && (
-            <p className="text-xs text-red-400">{errors.classId.message.toString()}</p>
+          {errors.courseId?.message && (
+            <p className="text-xs text-red-400">{errors.courseId.message.toString()}</p>
           )}
         </div>
 
