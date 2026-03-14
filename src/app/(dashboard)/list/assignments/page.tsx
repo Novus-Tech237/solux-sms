@@ -73,10 +73,7 @@ const AssignmentListPage = async ({
       </td>
       <td>
         {item.pdfUrl ? (
-          <AssignmentDownloadButton
-            url={item.pdfUrl}
-            filename={`${item.title || "assignment"}.pdf`}
-          />
+          <AssignmentDownloadButton id={item.id} />
         ) : (
           "-"
         )}

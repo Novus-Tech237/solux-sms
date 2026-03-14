@@ -3,21 +3,18 @@
 import { useState } from "react";
 
 interface AssignmentDownloadButtonProps {
-  url: string;
-  filename: string;
+  id: number;
 }
 
 export default function AssignmentDownloadButton({
-  url,
-  filename,
+  id,
 }: AssignmentDownloadButtonProps) {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
-    if (!url) return;
     try {
       setDownloading(true);
-      const response = await fetch(url);
+      const response = await fetch(`/api/assignments/download?id=${id}`);
       if (!response.ok) {
         throw new Error(`Download failed with status ${response.status}`);
       }
@@ -25,6 +22,14 @@ export default function AssignmentDownloadButton({
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
+
+      // Get filename from Content-Disposition if possible
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = "assignment.pdf";
+      if (contentDisposition && contentDisposition.includes("filename=")) {
+        filename = contentDisposition.split("filename=")[1].replace(/"/g, "");
+      }
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
