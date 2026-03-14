@@ -4,13 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import InputField from "../InputField";
 import Image from "next/image";
+import CloudinaryUploader from "../CloudinaryUploader";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { teacherSchema, TeacherSchema } from "@/lib/formValidationSchemas";
 import { useFormState } from "react-dom";
 import { createTeacher, updateTeacher } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { CldUploadWidget } from "next-cloudinary";
 
 const TeacherForm = ({
   type,
@@ -24,6 +24,7 @@ const TeacherForm = ({
   relatedData?: any;
 }) => {
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
 
   const {
     register,
@@ -170,25 +171,19 @@ const TeacherForm = ({
             </p>
           )}
         </div>
-        <CldUploadWidget
-          uploadPreset={uploadPreset}
-          onSuccess={(result, { widget }) => {
-            setImg(result.info);
-            widget.close();
-          }}
+        <CloudinaryUploader
+          resourceType="image"
+          folder="school/teachers"
+          preset={uploadPreset}
+          onUpload={(url) => setImg({ secure_url: url })}
         >
-          {({ open }) => {
-            return (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={28} height={28} />
-                <span>Upload a photo</span>
-              </div>
-            );
-          }}
-        </CldUploadWidget>
+          <div
+            className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
+          >
+            <Image src="/upload.png" alt="" width={28} height={28} />
+            <span>Upload a photo</span>
+          </div>
+        </CloudinaryUploader>
       </div>
       {state.error && (
         <span className="text-red-500">Something went wrong!</span>

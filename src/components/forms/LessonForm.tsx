@@ -9,8 +9,8 @@ import { useFormState } from "react-dom";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
-import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
+import CloudinaryUploader from "../CloudinaryUploader";
 
 const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
 
@@ -25,7 +25,8 @@ const LessonForm = ({
   setOpen: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
 
   const {
     register,
@@ -118,65 +119,41 @@ const LessonForm = ({
         <input type="hidden" {...register("videoUrl")} value={uploadedVideoUrl || data?.videoUrl || ""} />
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Lesson PDF</label>
-          <CldUploadWidget
-            uploadPreset={uploadPreset}
-            options={{
-              resourceType: "raw",
-              maxFiles: 1,
-              clientAllowedFormats: ["pdf"],
-              folder: "school/lessons",
-            }}
-            onSuccess={(result: any, { widget }) => {
-              const secureUrl = result?.info?.secure_url as string;
-              if (secureUrl) {
-                setUploadedPdfUrl(secureUrl);
-                setValue("pdfUrl", secureUrl, { shouldValidate: true });
-              }
-              widget.close();
+          <CloudinaryUploader
+            resourceType="raw"
+            folder="school/lessons"
+            preset={uploadPreset}
+            onUpload={(url) => {
+              setUploadedPdfUrl(url);
+              setValue("pdfUrl", url, { shouldValidate: true });
             }}
           >
-            {({ open }) => (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={24} height={24} />
-                <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload lesson PDF"}</span>
-              </div>
-            )}
-          </CldUploadWidget>
+            <div className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer">
+              <Image src="/upload.png" alt="" width={24} height={24} />
+              <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload lesson PDF"}</span>
+            </div>
+          </CloudinaryUploader>
           {errors.pdfUrl?.message && (
             <p className="text-xs text-red-400">{errors.pdfUrl.message.toString()}</p>
           )}
         </div>
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Lesson Video (optional)</label>
-          <CldUploadWidget
-            uploadPreset={uploadPreset}
-            options={{
-              resourceType: "video",
-              maxFiles: 1,
-              folder: "school/lessons",
-            }}
-            onSuccess={(result: any, { widget }) => {
-              const secureUrl = result?.info?.secure_url as string;
-              if (secureUrl) {
-                setUploadedVideoUrl(secureUrl);
-                setValue("videoUrl", secureUrl, { shouldValidate: true });
-              }
-              widget.close();
+          <CloudinaryUploader
+            resourceType="video"
+            folder="school/lessons"
+            preset={uploadPreset}
+            acceptedTypes={["video/mp4", "video/webm", "video/ogg", "video/quicktime"]}
+            onUpload={(url) => {
+              setUploadedVideoUrl(url);
+              setValue("videoUrl", url, { shouldValidate: true });
             }}
           >
-            {({ open }) => (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={24} height={24} />
-                <span>{uploadedVideoUrl || data?.videoUrl ? "Video uploaded" : "Upload lesson video"}</span>
-              </div>
-            )}
-          </CldUploadWidget>
+            <div className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer">
+              <Image src="/upload.png" alt="" width={24} height={24} />
+              <span>{uploadedVideoUrl || data?.videoUrl ? "Video uploaded" : "Upload lesson video"}</span>
+            </div>
+          </CloudinaryUploader>
           {errors.videoUrl?.message && (
             <p className="text-xs text-red-400">{errors.videoUrl.message.toString()}</p>
           )}

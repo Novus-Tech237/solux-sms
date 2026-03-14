@@ -1,126 +1,90 @@
-import prisma from "@/lib/prisma";
+"use client";
 
-type EventRecurrenceValue = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-const toStartOfDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+interface Occurrence {
+  id: number;
+  title: string;
+  description: string | null;
+  occurrenceStart: string;
+  occurrenceEnd: string;
+}
 
-const toEndOfDay = (date: Date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+const EventList = () => {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams?.get("date") || undefined;
 
-const createOccurrenceDateTime = (targetDate: Date, sourceDateTime: Date) =>
-  new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate(),
-    sourceDateTime.getHours(),
-    sourceDateTime.getMinutes(),
-    sourceDateTime.getSeconds(),
-    sourceDateTime.getMilliseconds()
-  );
+  const [events, setEvents] = useState<Occurrence[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-const differenceInDays = (later: Date, earlier: Date) =>
-  Math.floor((later.getTime() - earlier.getTime()) / (1000 * 60 * 60 * 24));
+  useEffect(() => {
+    async function fetchEvents() {
+      setLoading(true);
+      setError(null);
 
-const occursOnDate = (
-  eventStart: Date,
-  recurrence: EventRecurrenceValue,
-  date: Date
-) => {
-  const normalizedEventStart = toStartOfDay(eventStart);
-  const normalizedDate = toStartOfDay(date);
-
-  if (normalizedDate < normalizedEventStart) {
-    return false;
-  }
-
-  switch (recurrence) {
-    case "NONE":
-      return normalizedDate.getTime() === normalizedEventStart.getTime();
-    case "DAILY":
-      return true;
-    case "WEEKLY": {
-      const daysDiff = differenceInDays(normalizedDate, normalizedEventStart);
-      return daysDiff % 7 === 0;
-    }
-    case "MONTHLY": {
-      if (date.getDate() !== eventStart.getDate()) {
-        return false;
+      try {
+        const query = dateParam
+          ? `?date=${encodeURIComponent(dateParam)}`
+          : "";
+        const res = await fetch(`/api/events${query}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error("Failed to fetch events");
+        }
+        const data: Occurrence[] = await res.json();
+        setEvents(data);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Unknown error");
+      } finally {
+        setLoading(false);
       }
-
-      const monthDiff =
-        (date.getFullYear() - eventStart.getFullYear()) * 12 +
-        (date.getMonth() - eventStart.getMonth());
-      return monthDiff >= 0;
     }
-    case "YEARLY":
-      return (
-        date.getMonth() === eventStart.getMonth() &&
-        date.getDate() === eventStart.getDate() &&
-        date.getFullYear() >= eventStart.getFullYear()
-      );
-    default:
-      return normalizedDate.getTime() === normalizedEventStart.getTime();
+
+    fetchEvents();
+  }, [dateParam]);
+
+  if (loading) {
+    return <p className="text-gray-500">Loading events...</p>;
   }
-};
+  if (error) {
+    return <p className="text-red-500">{error}</p>;
+  }
 
-const EventList = async ({ dateParam }: { dateParam: string | undefined }) => {
-  const date = dateParam ? new Date(dateParam) : new Date();
-  const dayStart = toStartOfDay(date);
-  const dayEnd = toEndOfDay(date);
+  if (events.length === 0) {
+    return <p className="text-gray-500">No events for selected date.</p>;
+  }
 
-  const data = await prisma.event.findMany({
-    where: {
-      startTime: {
-        lte: dayEnd,
-      },
-    },
-    orderBy: {
-      startTime: "asc",
-    },
-  });
-
-  const occurrences = data
-    .filter((event) =>
-      occursOnDate(event.startTime, event.recurrence as EventRecurrenceValue, date)
-    )
-    .map((event) => {
-      const occurrenceStart = createOccurrenceDateTime(date, event.startTime);
-      const durationMs = event.endTime.getTime() - event.startTime.getTime();
-      const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
-
-      return {
-        event,
-        occurrenceStart,
-        occurrenceEnd,
-      };
-    })
-    .filter(
-      ({ occurrenceStart, occurrenceEnd }) =>
-        occurrenceStart <= dayEnd && occurrenceEnd >= dayStart
-    )
-    .sort(
-      (a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime()
-    );
-
-  return occurrences.map(({ event, occurrenceStart }) => (
-    <div
-      className="p-5 rounded-md border-2 border-gray-100 border-t-4 odd:border-t-lamaSky even:border-t-lamaPurple"
-      key={event.id}
-    >
-      <div className="flex items-center justify-between">
-        <h1 className="font-semibold text-gray-600">{event.title}</h1>
-        <span className="text-gray-300 text-xs">
-          {occurrenceStart.toLocaleTimeString("en-UK", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          })}
-        </span>
-      </div>
-      <p className="mt-2 text-gray-400 text-sm">{event.description}</p>
-    </div>
-  ));
+  return (
+    <>
+      {events.map((occ) => {
+        const occurrenceStart = new Date(occ.occurrenceStart);
+        return (
+          <div
+            className="p-5 rounded-md border-2 border-gray-100 border-t-4 odd:border-t-lamaSky even:border-t-lamaPurple"
+            key={occ.id}
+          >
+            <div className="flex items-center justify-between">
+              <h1 className="font-semibold text-gray-600">{occ.title}</h1>
+              <span className="text-gray-300 text-xs">
+                {occurrenceStart.toLocaleTimeString("en-UK", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })}
+              </span>
+            </div>
+            <p className="mt-2 text-gray-400 text-sm">
+              {occ.description}
+            </p>
+          </div>
+        );
+      })}
+    </>
+  );
 };
 
 export default EventList;

@@ -6,17 +6,17 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
-interface ExamSubmissionFormProps {
-  examId: number;
-  examTitle: string;
+interface AssignmentSubmissionFormProps {
+  assignmentId: number;
+  assignmentTitle: string;
   studentId: string;
 }
 
-export default function ExamSubmissionForm({
-  examId,
-  examTitle,
+export default function AssignmentSubmissionForm({
+  assignmentId,
+  assignmentTitle,
   studentId,
-}: ExamSubmissionFormProps) {
+}: AssignmentSubmissionFormProps) {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -27,20 +27,20 @@ export default function ExamSubmissionForm({
     e.preventDefault();
 
     if (!uploadedFileUrl) {
-      toast.error("Please upload your exam submission");
+      toast.error("Please upload your assignment file");
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      const response = await fetch("/api/exam/submit", {
+      const response = await fetch("/api/assignment/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          examId,
+          assignmentId,
           studentId,
           fileUrl: uploadedFileUrl,
         }),
@@ -49,11 +49,11 @@ export default function ExamSubmissionForm({
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || "Failed to submit exam");
+        toast.error(data.message || "Failed to submit assignment");
         return;
       }
 
-      toast.success("Exam submitted successfully!");
+      toast.success("Assignment submitted successfully!");
       setUploadedFileUrl("");
       router.refresh();
     } catch (error) {
@@ -68,20 +68,20 @@ export default function ExamSubmissionForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
-          {examTitle}
+          {assignmentTitle}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Upload your completed exam answer sheet
+          Upload your completed assignment
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Exam Submission (PDF)
+          Assignment Submission (PDF)
         </label>
         <CloudinaryUploader
           resourceType="raw"
-          folder="school/exam-submissions"
+          folder="school/assignment-submissions"
           preset={uploadPreset}
           onUpload={(url) => {
             setUploadedFileUrl(url);
@@ -105,7 +105,7 @@ export default function ExamSubmissionForm({
         disabled={isSubmitting || !uploadedFileUrl}
         className="bg-blue-500 dark:bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
       >
-        {isSubmitting ? "Submitting..." : "Submit Exam"}
+        {isSubmitting ? "Submitting..." : "Submit Assignment"}
       </button>
     </form>
   );

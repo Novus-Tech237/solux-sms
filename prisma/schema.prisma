@@ -233,7 +233,7 @@ model Event {
   id          Int      @id @default(autoincrement())
   title       String
   description String
-  startTime   DateTime
+  startTime   DateTime @index
   endTime     DateTime
   recurrence  EventRecurrence @default(NONE)
 

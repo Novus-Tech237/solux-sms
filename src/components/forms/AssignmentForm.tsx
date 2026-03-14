@@ -12,8 +12,8 @@ import { useFormState } from "react-dom";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
-import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
+import CloudinaryUploader from "../CloudinaryUploader";
 
 const AssignmentForm = ({
   type,
@@ -27,6 +27,7 @@ const AssignmentForm = ({
   relatedData?: any;
 }) => {
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "school";
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
 
   const {
     register,
@@ -101,33 +102,33 @@ const AssignmentForm = ({
         <input type="hidden" {...register("pdfUrl")} value={uploadedPdfUrl || data?.pdfUrl || ""} />
         <div className="flex flex-col gap-2 w-full md:w-1/4">
           <label className="text-xs text-gray-500">Assignment PDF</label>
-          <CldUploadWidget
-            uploadPreset={uploadPreset}
-            options={{
-              resourceType: "raw",
-              maxFiles: 1,
-              clientAllowedFormats: ["pdf"],
-              folder: "school/assignments",
-            }}
-            onSuccess={(result: any, { widget }) => {
-              const secureUrl = result?.info?.secure_url as string;
-              if (secureUrl) {
-                setUploadedPdfUrl(secureUrl);
-                setValue("pdfUrl", secureUrl, { shouldValidate: true });
-              }
-              widget.close();
+          {data?.pdfUrl && !uploadedPdfUrl && (
+            <div className="mb-2">
+              <a
+                href={data.pdfUrl}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 underline"
+              >
+                Current file&nbsp;↗
+              </a>
+            </div>
+          )}
+          <CloudinaryUploader
+            resourceType="raw"
+            folder="school/assignments"
+            preset={uploadPreset}
+            onUpload={(url) => {
+              setUploadedPdfUrl(url);
+              setValue("pdfUrl", url, { shouldValidate: true });
             }}
           >
-            {({ open }) => (
-              <div
-                className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                onClick={() => open()}
-              >
-                <Image src="/upload.png" alt="" width={24} height={24} />
-                <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload assignment PDF"}</span>
-              </div>
-            )}
-          </CldUploadWidget>
+            <div className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer">
+              <Image src="/upload.png" alt="" width={24} height={24} />
+              <span>{uploadedPdfUrl || data?.pdfUrl ? "PDF uploaded" : "Upload assignment PDF"}</span>
+            </div>
+          </CloudinaryUploader>
           {errors.pdfUrl?.message && (
             <p className="text-xs text-red-400">{errors.pdfUrl.message.toString()}</p>
           )}

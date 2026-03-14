@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    optimizePackageImports: ['next-cloudinary'],
+  },
   images: {
-    remotePatterns: [{ hostname: "images.pexels.com" }],
+    domains: ['res.cloudinary.com'],
   },
 };
 

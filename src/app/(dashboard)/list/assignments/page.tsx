@@ -8,12 +8,14 @@ import { Assignment, Course, Prisma, Teacher } from "@prisma/client";
 import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import AssignmentDownloadButton from "@/components/AssignmentDownloadButton";
 
 type AssignmentList = Assignment & {
   lesson: {
     course: Course;
     teacher: Teacher;
   };
+  submissions?: { id: number }[];
 };
 
 const AssignmentListPage = async ({
@@ -46,14 +48,14 @@ const AssignmentListPage = async ({
       accessor: "dueDate",
       className: "hidden md:table-cell",
     },
-    ...(role === "admin" || role === "teacher"
-      ? [
-          {
-            header: "Actions",
-            accessor: "action",
-          },
-        ]
-      : []),
+    {
+      header: "PDF",
+      accessor: "pdf",
+    },
+    {
+      header: role === "student" ? "Actions" : "Actions",
+      accessor: "action",
+    },
   ];
   
   const renderRow = (item: AssignmentList) => (
@@ -70,7 +72,27 @@ const AssignmentListPage = async ({
         {new Intl.DateTimeFormat("en-US").format(item.dueDate)}
       </td>
       <td>
+        {item.pdfUrl ? (
+          <AssignmentDownloadButton
+            url={item.pdfUrl}
+            filename={`${item.title || "assignment"}.pdf`}
+          />
+        ) : (
+          "-"
+        )}
+      </td>
+      <td>
         <div className="flex items-center gap-2">
+          {role === "student" && (
+            <Link
+              href={`/student/assignment-submission?assignmentId=${item.id}`}
+              className="text-xs bg-lamaSkyLight px-2 py-1 rounded-md"
+            >
+              {item.submissions && item.submissions.length > 0
+                ? "Resubmit"
+                : "Submit"}
+            </Link>
+          )}
           {role === "teacher" && (
             <Link
               href={`/teacher/submissions?type=assignment&id=${item.id}`}
@@ -81,8 +103,8 @@ const AssignmentListPage = async ({
           )}
           {(role === "admin" || role === "teacher") && (
             <>
-                  <FormContainer table="assignment" type="update" data={item} />
-                  <FormContainer table="assignment" type="delete" id={item.id} />
+              <FormContainer table="assignment" type="update" data={item} />
+              <FormContainer table="assignment" type="delete" id={item.id} />
             </>
           )}
         </div>
@@ -157,13 +179,10 @@ const AssignmentListPage = async ({
         });
 
         const courseIds = registrations.map((registration) => registration.courseId);
-        query.lesson = {
-          ...query.lesson,
-          courseId: { in: courseIds },
-        };
+        (query.lesson as any).courseId = { in: courseIds };
       } else {
         // If student has no enrolled program, return empty results
-        query.lesson.courseId = { in: [] };
+        (query.lesson as any).courseId = { in: [] };
       }
       break;
     // parent role removed
@@ -181,6 +200,11 @@ const AssignmentListPage = async ({
             teacher: { select: { name: true, surname: true } },
           },
         },
+        // include student submission if viewer is student
+        submissions: role === "student" ? {
+          where: { studentId: currentUserId! },
+          select: { id: true },
+        } : false,
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),

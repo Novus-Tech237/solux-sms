@@ -1,9 +1,10 @@
 import BigCalendar from "@/components/BigCalender";
-import EventCalendar from "@/components/EventCalendar";
+import EventCalendarContainer from "@/components/EventCalendarContainer";
 import prisma from "@/lib/prisma";
 import { adjustScheduleToCurrentWeek } from "@/lib/utils";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import { Lesson } from "@prisma/client";
 
 const StudentPage = async () => {
   const { userId } = auth();
@@ -28,7 +29,7 @@ const StudentPage = async () => {
   });
 
   // Get lessons for courses explicitly registered by the student in the active program.
-  let lessons = [];
+  let lessons: Pick<Lesson, "name" | "startTime" | "endTime">[] = [];
   if (enrollment?.program) {
     const registrations = await prisma.studentCourseRegistration.findMany({
       where: {
@@ -77,12 +78,26 @@ const StudentPage = async () => {
                 <h1 className="text-xl font-semibold">
                   Schedule - {enrollment.program.name}
                 </h1>
-                <Link
-                  href="/student/available-courses"
-                  className="text-sm text-blue-500 hover:text-blue-700"
-                >
-                  Manage Program/Courses
-                </Link>
+                <div className="flex gap-4 items-center">
+                  <Link
+                    href="/list/assignments"
+                    className="text-sm text-blue-500 hover:text-blue-700"
+                  >
+                    My Assignments
+                  </Link>
+                  <Link
+                    href="/student/exam-submission"
+                    className="text-sm text-blue-500 hover:text-blue-700"
+                  >
+                    My Exams
+                  </Link>
+                  <Link
+                    href="/student/available-courses"
+                    className="text-sm text-blue-500 hover:text-blue-700"
+                  >
+                    Manage Program/Courses
+                  </Link>
+                </div>
               </div>
               {schedule.length > 0 ? (
                 <BigCalendar data={schedule} />
@@ -96,7 +111,7 @@ const StudentPage = async () => {
             <div className="text-center py-8">
               <h2 className="text-xl font-semibold mb-4">No Program Enrolled</h2>
               <p className="text-gray-600 mb-6">
-                You haven't enrolled in any program yet. Please choose a program to
+                You haven&apos;t enrolled in any program yet. Please choose a program to
                 get started.
               </p>
               <Link
@@ -111,7 +126,7 @@ const StudentPage = async () => {
       </div>
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-8">
-        <EventCalendar />
+          <EventCalendarContainer />
       </div>
     </div>
   );
