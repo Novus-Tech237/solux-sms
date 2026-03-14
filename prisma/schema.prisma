@@ -233,12 +233,14 @@ model Event {
   id          Int      @id @default(autoincrement())
   title       String
   description String
-  startTime   DateTime @index
+  startTime   DateTime
   endTime     DateTime
   recurrence  EventRecurrence @default(NONE)
 
   classId Int?
   class   Class? @relation(fields: [classId], references: [id])
+
+  @@index([startTime])
 }
 
 model Announcement {
