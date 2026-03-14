@@ -56,8 +56,6 @@ export default function CloudinaryUploader({
     form.append("file", file);
     form.append("upload_preset", preset);
     form.append("resource_type", resourceType);
-    // Ensure files are publicly accessible
-    form.append("type", "upload");
     if (folder) {
       form.append("folder", folder);
     }
