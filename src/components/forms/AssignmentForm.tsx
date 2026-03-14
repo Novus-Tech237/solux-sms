@@ -105,7 +105,7 @@ const AssignmentForm = ({
           {data?.pdfUrl && !uploadedPdfUrl && (
             <div className="mb-2">
               <a
-                href={data.pdfUrl}
+                href={`/api/assignments/download?id=${data.id}`}
                 download
                 target="_blank"
                 rel="noopener noreferrer"

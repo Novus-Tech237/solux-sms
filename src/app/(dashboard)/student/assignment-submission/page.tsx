@@ -155,7 +155,7 @@ const StudentAssignmentSubmissionPage = async ({
               {assignment.pdfUrl && (
                 <div>
                   <a
-                    href={assignment.pdfUrl}
+                    href={`/api/assignments/download?id=${assignment.id}`}
                     download
                     target="_blank"
                     rel="noopener noreferrer"
