@@ -23,35 +23,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if student already submitted for this exam
-    const existingSubmission = await prisma.examSubmission.findUnique({
+    // Check current submission count for this student and exam
+    const submissionCount = await prisma.examSubmission.count({
       where: {
-        examId_studentId: {
-          examId: parseInt(examId),
-          studentId: userId,
-        },
+        examId: parseInt(examId),
+        studentId: userId,
       },
     });
 
-    if (existingSubmission) {
-      // Update existing submission
-      const updated = await prisma.examSubmission.update({
-        where: {
-          id: existingSubmission.id,
-        },
-        data: {
-          fileUrl,
-          submittedAt: new Date(),
-        },
-      });
+    // Get exam maxSubmissions
+    const exam = await prisma.exam.findUnique({
+      where: { id: parseInt(examId) },
+      select: { maxSubmissions: true },
+    });
 
+    if (!exam) {
       return NextResponse.json(
-        {
-          success: true,
-          message: "Exam resubmitted successfully",
-          data: updated,
-        },
-        { status: 200 }
+        { message: "Exam not found" },
+        { status: 404 }
+      );
+    }
+
+    const maxSubs = exam.maxSubmissions || 1; // default to 1 if not set
+
+    if (submissionCount >= maxSubs) {
+      return NextResponse.json(
+        { message: "Maximum submissions reached" },
+        { status: 400 }
       );
     }
 

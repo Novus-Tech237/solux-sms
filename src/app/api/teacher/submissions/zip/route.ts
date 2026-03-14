@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const assignment = await prisma.assignment.findFirst({
       where: {
         id,
-        lesson: { teacherId: userId },
+        course: { teacherId: userId },
       },
       include: {
         submissions: {
@@ -83,7 +83,7 @@ export async function GET(req: Request) {
   const exam = await prisma.exam.findFirst({
     where: {
       id,
-      lesson: { teacherId: userId },
+      course: { teacherId: userId },
     },
     include: {
       submissions: {

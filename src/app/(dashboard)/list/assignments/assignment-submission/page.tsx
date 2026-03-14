@@ -4,6 +4,7 @@ import AssignmentSubmissionForm from "@/components/forms/AssignmentSubmissionFor
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ArrowLeft } from "lucide-react";
 
 const StudentAssignmentSubmissionPage = async ({
   searchParams,
@@ -50,17 +51,14 @@ const StudentAssignmentSubmissionPage = async ({
   // Get assignments from courses in the student's program
   const assignments = await prisma.assignment.findMany({
     where: {
-      lesson: {
-        courseId: {
-          in: courseIds,
-        },
+      courseId: {
+        in: courseIds,
       },
     },
     include: {
-      lesson: {
+      course: {
         select: {
           name: true,
-          course: { select: { name: true } },
           teacher: { select: { name: true, surname: true } },
         },
       },
@@ -72,6 +70,16 @@ const StudentAssignmentSubmissionPage = async ({
           id: true,
           submittedAt: true,
           fileUrl: true,
+          status: true,
+        },
+      },
+      _count: {
+        select: {
+          submissions: {
+            where: {
+              studentId: userId,
+            },
+          },
         },
       },
     },
@@ -103,7 +111,7 @@ const StudentAssignmentSubmissionPage = async ({
           href="/list/assignments"
           className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-6 hover:underline"
         >
-          <Image src="/back.png" alt="" width={16} height={16} />
+          <ArrowLeft/>
           Back to Assignments
         </Link>
 
@@ -114,6 +122,9 @@ const StudentAssignmentSubmissionPage = async ({
               assignmentId={assignment.id}
               assignmentTitle={assignment.title}
               studentId={userId}
+              currentSubmissions={assignment.submissions.length}
+              maxSubmissions={assignment.maxSubmissions || 1}
+              isSubmitted={assignment.submissions.some(s => s.status === "SUBMITTED")}
             />
           </div>
 
@@ -127,14 +138,14 @@ const StudentAssignmentSubmissionPage = async ({
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Course</p>
                 <p className="font-medium text-gray-800 dark:text-gray-100">
-                  {assignment.lesson.course?.name || "-"}
+                  {assignment.course?.name || "-"}
                 </p>
               </div>
 
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Teacher</p>
                 <p className="font-medium text-gray-800 dark:text-gray-100">
-                  {assignment.lesson.teacher.name} {assignment.lesson.teacher.surname}
+                  {assignment.course?.teacher?.name} {assignment.course?.teacher?.surname}
                 </p>
               </div>
 
@@ -171,14 +182,21 @@ const StudentAssignmentSubmissionPage = async ({
                   <p className="text-gray-500 dark:text-gray-400 text-xs font-semibold">
                     SUBMISSION STATUS
                   </p>
-                  <p className="text-green-600 dark:text-green-400 font-medium mt-1">
-                    ✓ Submitted
+                  <p className={`font-medium mt-1 ${
+                    assignment.submissions.some(s => s.status === "SUBMITTED")
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-yellow-600 dark:text-yellow-400"
+                  }`}>
+                    {assignment.submissions.some(s => s.status === "SUBMITTED")
+                      ? "✓ Submitted"
+                      : `Draft (${assignment.submissions.length}/${assignment.maxSubmissions || 1})`
+                    }
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {new Intl.DateTimeFormat("en-US", {
+                    Last submitted: {new Intl.DateTimeFormat("en-US", {
                       dateStyle: "medium",
                       timeStyle: "short",
-                    }).format(new Date(assignment.submissions[0].submittedAt))}
+                    }).format(new Date(assignment.submissions[assignment.submissions.length - 1].submittedAt))}
                   </p>
                 </div>
               )}
@@ -216,13 +234,13 @@ const StudentAssignmentSubmissionPage = async ({
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">Course</p>
                       <p className="font-medium text-gray-800 dark:text-gray-100">
-                        {assignment.lesson.course?.name || "-"}
+                        {assignment.course?.name || "-"}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">Teacher</p>
                       <p className="font-medium text-gray-800 dark:text-gray-100">
-                        {assignment.lesson.teacher.name}
+                        {assignment.course?.teacher?.name} {assignment.course?.teacher?.surname}
                       </p>
                     </div>
                     <div>

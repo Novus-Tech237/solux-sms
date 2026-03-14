@@ -424,7 +424,8 @@ export const createExam = async (
         startTime: data.startTime,
         endTime: data.endTime,
         pdfUrl: data.pdfUrl,
-        lessonId: data.lessonId,
+        courseId: data.courseId,
+        maxSubmissions: data.maxSubmissions,
       },
     });
 
@@ -470,7 +471,8 @@ export const updateExam = async (
         startTime: data.startTime,
         endTime: data.endTime,
         pdfUrl: data.pdfUrl,
-        lessonId: data.lessonId,
+        courseId: data.courseId,
+        maxSubmissions: data.maxSubmissions,
       },
     });
 
@@ -507,16 +509,16 @@ export const deleteExam = async (
   }
 };
 
-const verifyTeacherLessonAccess = async (teacherId: string, lessonId: number) => {
-  const lesson = await prisma.lesson.findFirst({
+const verifyTeacherCourseAccess = async (teacherId: string, courseId: number) => {
+  const course = await prisma.course.findFirst({
     where: {
-      id: lessonId,
+      id: courseId,
       teacherId,
     },
     select: { id: true },
   });
 
-  return Boolean(lesson);
+  return Boolean(course);
 };
 
 export const createLesson = async (
@@ -596,7 +598,7 @@ export const updateLesson = async (
     }
 
     if (role === "teacher") {
-      const canAccess = await verifyTeacherLessonAccess(userId!, data.id);
+      const canAccess = await verifyTeacherCourseAccess(userId!, data.id);
       if (!canAccess) {
         return { success: false, error: true };
       }
@@ -636,7 +638,7 @@ export const deleteLesson = async (
     }
 
     if (role === "teacher") {
-      const canAccess = await verifyTeacherLessonAccess(userId!, id);
+      const canAccess = await verifyTeacherCourseAccess(userId!, id);
       if (!canAccess) {
         return { success: false, error: true };
       }
@@ -667,7 +669,7 @@ export const createAssignment = async (
     }
 
     if (role === "teacher") {
-      const canAccess = await verifyTeacherLessonAccess(userId!, data.lessonId);
+      const canAccess = await verifyTeacherCourseAccess(userId!, data.courseId);
       if (!canAccess) {
         return { success: false, error: true };
       }
@@ -679,7 +681,8 @@ export const createAssignment = async (
         startDate: data.startDate,
         dueDate: data.dueDate,
         pdfUrl: data.pdfUrl,
-        lessonId: data.lessonId,
+        courseId: data.courseId,
+        maxSubmissions: data.maxSubmissions,
       },
     });
 
@@ -712,7 +715,7 @@ export const updateAssignment = async (
 
     if (role === "teacher") {
       const assignment = await prisma.assignment.findFirst({
-        where: { id: data.id, lesson: { teacherId: userId! } },
+        where: { id: data.id, course: { teacherId: userId! } },
         select: { id: true },
       });
 
@@ -728,7 +731,8 @@ export const updateAssignment = async (
         startDate: data.startDate,
         dueDate: data.dueDate,
         pdfUrl: data.pdfUrl,
-        lessonId: data.lessonId,
+        courseId: data.courseId,
+        maxSubmissions: data.maxSubmissions,
       },
     });
 
@@ -1450,4 +1454,44 @@ export const deleteCourse = async (
     return { success: false, error: true };
   }
 };
+
+// Add/replace these two functions in your @/lib/actions file
+
+export async function releaseAssignmentGrades(assessmentId: number, courseId: number) {
+  try {
+    const { userId, sessionClaims } = auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    if (role !== "teacher") return { success: false, message: "Unauthorized" };
+
+    await prisma.assignment.update({
+      where: { id: assessmentId, courseId, course: { teacherId: userId! } },
+      data: { gradesReleased: true },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, message: "Failed to release grades" };
+  }
+}
+
+// export async function releaseExamGrades(assessmentId: number, courseId: number) {
+//   try {
+//     const { userId, sessionClaims } = auth();
+//     const role = (sessionClaims?.metadata as { role?: string })?.role;
+//     if (role !== "teacher") return { success: false, message: "Unauthorized" };
+
+//     await prisma.exam.update({
+//       where: { id: assessmentId, courseId, course: { teacherId: userId! } },
+//       data: { gradesReleased: true },
+//     });
+
+//     return { success: true };
+//   } catch (error) {
+//     console.error(error);
+//     return { success: false, message: "Failed to release grades" };
+//   }
+// }
+
+// Add/replace these two functions in your @/lib/actions file
 

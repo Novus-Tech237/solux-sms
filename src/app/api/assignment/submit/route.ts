@@ -23,37 +23,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if student already submitted for this assignment
-    const existingSubmission = await prisma.assignmentSubmission.findUnique({
+    // Check current submission count for this student and assignment
+    const submissionCount = await prisma.assignmentSubmission.count({
       where: {
-        assignmentId_studentId: {
-          assignmentId: parseInt(assignmentId),
-          studentId: userId,
-        },
+        assignmentId: parseInt(assignmentId),
+        studentId: userId,
       },
     });
 
-    if (existingSubmission) {
-      // Update existing submission
-      const updated = await prisma.assignmentSubmission.update({
-        where: {
-          id: existingSubmission.id,
-        },
-        data: {
-          fileUrl,
-          submittedAt: new Date(),
-        },
-      });
+    // Get assignment maxSubmissions
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: parseInt(assignmentId) },
+      select: { maxSubmissions: true },
+    });
 
+    if (!assignment) {
       return NextResponse.json(
-        {
-          success: true,
-          message: "Assignment resubmitted successfully",
-          data: updated,
-        },
-        { status: 200 }
+        { message: "Assignment not found" },
+        { status: 404 }
       );
     }
+
+    const maxSubs = assignment.maxSubmissions || 1; // default to 1 if not set
+
+    if (submissionCount >= maxSubs) {
+      return NextResponse.json(
+        { message: "Maximum submissions reached" },
+        { status: 400 }
+      );
+    }
+
+    // Determine status: if this will be the last allowed submission, set to SUBMITTED
+    const newStatus = submissionCount + 1 >= maxSubs ? "SUBMITTED" : "DRAFT";
 
     // Create new submission
     const submission = await prisma.assignmentSubmission.create({
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         assignmentId: parseInt(assignmentId),
         studentId: userId,
         fileUrl,
+        status: newStatus,
       },
     });
 

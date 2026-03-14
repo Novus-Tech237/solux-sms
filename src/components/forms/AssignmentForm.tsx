@@ -67,7 +67,7 @@ const AssignmentForm = ({
     }
   }, [state, router, type, setOpen]);
 
-  const { lessons = [] } = relatedData || {};
+  const { courses = [] } = relatedData || {};
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -98,6 +98,14 @@ const AssignmentForm = ({
           register={register}
           error={errors?.dueDate}
           type="datetime-local"
+        />
+        <InputField
+          label="Max Submissions (optional)"
+          name="maxSubmissions"
+          defaultValue={data?.maxSubmissions}
+          register={register}
+          error={errors?.maxSubmissions}
+          type="number"
         />
         <input type="hidden" {...register("pdfUrl")} value={uploadedPdfUrl || data?.pdfUrl || ""} />
         <div className="flex flex-col gap-2 w-full md:w-1/4">
@@ -146,20 +154,20 @@ const AssignmentForm = ({
         )}
 
         <div className="flex flex-col gap-2 w-full md:w-1/4">
-          <label className="text-xs text-gray-500">Lesson</label>
+          <label className="text-xs text-gray-500">Course</label>
           <select
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("lessonId")}
-            defaultValue={data?.lessonId}
+            {...register("courseId")}
+            defaultValue={data?.courseId}
           >
-            {lessons.map((lesson: { id: number; name: string }) => (
-              <option value={lesson.id} key={lesson.id}>
-                {lesson.name}
+            {courses.map((course: { id: number; name: string }) => (
+              <option value={course.id} key={course.id}>
+                {course.name}
               </option>
             ))}
           </select>
-          {errors.lessonId?.message && (
-            <p className="text-xs text-red-400">{errors.lessonId.message.toString()}</p>
+          {errors.courseId?.message && (
+            <p className="text-xs text-red-400">{errors.courseId.message.toString()}</p>
           )}
         </div>
       </div>

@@ -13,13 +13,14 @@ export default function DashboardLayout({
     <div className="h-screen flex dark:bg-gray-950">
       {/* LEFT */}
       <div className="w-[14%] md:w-[8%] lg:w-[16%] xl:w-[14%] p-4 dark:bg-gray-900 dark:text-gray-100">
-        <Link
-          href="/"
-          className="flex items-center justify-center gap-2"
-        >
-          {/** Logo */}
-          <Logo/>
-        </Link>
+        <div className="flex items-center justify-center">
+          <Logo />
+        </div>
+
+        {/**Institution Name */}
+        <div className="mt-4 md:block hidden">
+          <span className="text-sm text-slate-500 text-center">Queensway International College</span>
+        </div>
         <Menu />
       </div>
       {/* RIGHT */}

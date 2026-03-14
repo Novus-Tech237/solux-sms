@@ -78,26 +78,7 @@ const StudentPage = async () => {
                 <h1 className="text-xl font-semibold">
                   Schedule - {enrollment.program.name}
                 </h1>
-                <div className="flex gap-4 items-center">
-                  <Link
-                    href="/list/assignments"
-                    className="text-sm text-blue-500 hover:text-blue-700"
-                  >
-                    My Assignments
-                  </Link>
-                  <Link
-                    href="/student/exam-submission"
-                    className="text-sm text-blue-500 hover:text-blue-700"
-                  >
-                    My Exams
-                  </Link>
-                  <Link
-                    href="/student/available-courses"
-                    className="text-sm text-blue-500 hover:text-blue-700"
-                  >
-                    Manage Program/Courses
-                  </Link>
-                </div>
+                
               </div>
               {schedule.length > 0 ? (
                 <BigCalendar data={schedule} />
@@ -126,7 +107,31 @@ const StudentPage = async () => {
       </div>
       {/* RIGHT */}
       <div className="w-full xl:w-1/3 flex flex-col gap-8">
+      <div className="bg-white p-4 rounded-md whitespace-nowrap">
+            <h1 className="text-xl font-semibold">Shortcuts</h1>
+            <div className="mt-4 flex flex-wrap gap-4 items-center text-xs text-gray-500">
+                  <Link
+                    href="/list/assignments"
+                    className="p-3 rounded-md bg-red-100"
+                  >
+                    My Assignments
+                  </Link>
+                  <Link
+                    href="/student/exam-submission"
+                    className="p-3 rounded-md bg-green-100"
+                  >
+                    My Exams
+                  </Link>
+                  <Link
+                    href="/student/available-courses"
+                    className="p-3 rounded-md bg-purple-100"
+                  >
+                    Manage Program/Courses
+                  </Link>
+                </div>
+          </div>
           <EventCalendarContainer />
+          
       </div>
     </div>
   );

@@ -10,12 +10,16 @@ interface ExamSubmissionFormProps {
   examId: number;
   examTitle: string;
   studentId: string;
+  currentSubmissions: number;
+  maxSubmissions: number;
 }
 
 export default function ExamSubmissionForm({
   examId,
   examTitle,
   studentId,
+  currentSubmissions,
+  maxSubmissions,
 }: ExamSubmissionFormProps) {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +77,9 @@ export default function ExamSubmissionForm({
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Upload your completed exam answer sheet
         </p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+          Submissions: {currentSubmissions}/{maxSubmissions}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -102,10 +109,10 @@ export default function ExamSubmissionForm({
 
       <button
         type="submit"
-        disabled={isSubmitting || !uploadedFileUrl}
+        disabled={isSubmitting || !uploadedFileUrl || currentSubmissions >= maxSubmissions}
         className="bg-blue-500 dark:bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
       >
-        {isSubmitting ? "Submitting..." : "Submit Exam"}
+        {isSubmitting ? "Submitting..." : currentSubmissions >= maxSubmissions ? "Submission limit reached" : "Submit Exam"}
       </button>
     </form>
   );

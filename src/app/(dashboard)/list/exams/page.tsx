@@ -10,8 +10,7 @@ import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
 type ExamList = Exam & {
-  lesson: {
-    course: Course;
+  course: Course & {
     teacher: Teacher;
   };
   submissions?: {
@@ -62,9 +61,9 @@ const renderRow = (item: ExamList) => (
     className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight dark:border-gray-700 dark:even:bg-gray-800 dark:hover:bg-gray-700"
   >
     <td className="flex items-center gap-4 p-4">{item.title}</td>
-    <td className="dark:text-gray-100">{item.lesson.course.name}</td>
+    <td className="dark:text-gray-100">{item.course.name}</td>
     <td className="hidden md:table-cell dark:text-gray-100">
-      {item.lesson.teacher.name + " " + item.lesson.teacher.surname}
+      {item.course.teacher.name + " " + item.course.teacher.surname}
     </td>
     <td className="hidden md:table-cell dark:text-gray-100">
       {new Intl.DateTimeFormat("en-US").format(item.startTime)}
@@ -112,21 +111,21 @@ const renderRow = (item: ExamList) => (
 
   const query: Prisma.ExamWhereInput = {};
 
-  query.lesson = {};
+  query.course = {};
   if (queryParams) {
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
           case "courseId":
-            query.lesson.courseId = parseInt(value);
+            query.courseId = parseInt(value);
             break;
           case "teacherId":
-            query.lesson.teacherId = value;
+            query.course.teacherId = value;
             break;
           case "search":
             query.OR = [
               { title: { contains: value, mode: "insensitive" } },
-              { lesson: { course: { name: { contains: value, mode: "insensitive" } } } },
+              { course: { name: { contains: value, mode: "insensitive" } } },
             ];
             break;
           default:
@@ -142,7 +141,7 @@ const renderRow = (item: ExamList) => (
     case "admin":
       break;
     case "teacher":
-      query.lesson.teacherId = currentUserId!;
+      query.course.teacherId = currentUserId!;
       break;
     case "student":
       // Get the student's active program first.
@@ -170,13 +169,10 @@ const renderRow = (item: ExamList) => (
         });
 
         const courseIds = registrations.map((registration) => registration.courseId);
-        query.lesson = {
-          ...query.lesson,
-          courseId: { in: courseIds },
-        };
+        query.courseId = { in: courseIds };
       } else {
         // If student has no enrolled program, return empty results
-        query.lesson.courseId = { in: [] };
+        query.courseId = { in: [] };
       }
       break;
     // parent role removed
@@ -189,9 +185,9 @@ const renderRow = (item: ExamList) => (
     prisma.exam.findMany({
       where: query,
       include: {
-        lesson: {
+        course: {
           select: {
-            course: { select: { name: true } },
+            name: true,
             teacher: { select: { name: true, surname: true } },
           },
         },

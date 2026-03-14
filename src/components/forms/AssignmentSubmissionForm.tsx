@@ -10,12 +10,18 @@ interface AssignmentSubmissionFormProps {
   assignmentId: number;
   assignmentTitle: string;
   studentId: string;
+  currentSubmissions: number;
+  maxSubmissions: number;
+  isSubmitted: boolean;
 }
 
 export default function AssignmentSubmissionForm({
   assignmentId,
   assignmentTitle,
   studentId,
+  currentSubmissions,
+  maxSubmissions,
+  isSubmitted,
 }: AssignmentSubmissionFormProps) {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,6 +79,10 @@ export default function AssignmentSubmissionForm({
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Upload your completed assignment
         </p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+          Submissions: {currentSubmissions}/{maxSubmissions}
+          {isSubmitted && <span className="text-green-600 dark:text-green-400 ml-2">✓ Final submission completed</span>}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -102,10 +112,10 @@ export default function AssignmentSubmissionForm({
 
       <button
         type="submit"
-        disabled={isSubmitting || !uploadedFileUrl}
+        disabled={isSubmitting || !uploadedFileUrl || currentSubmissions >= maxSubmissions}
         className="bg-blue-500 dark:bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
       >
-        {isSubmitting ? "Submitting..." : "Submit Assignment"}
+        {isSubmitting ? "Submitting..." : currentSubmissions >= maxSubmissions ? "Submission limit reached" : "Submit Assignment"}
       </button>
     </form>
   );

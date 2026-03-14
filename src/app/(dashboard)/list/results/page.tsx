@@ -156,9 +156,9 @@ const renderRow = (item: ResultList) => (
         student: { select: { name: true, surname: true } },
         exam: {
           include: {
-            lesson: {
+            course: {
               select: {
-                course: { select: { name: true } },
+                name: true,
                 teacher: { select: { name: true, surname: true } },
               },
             },
@@ -166,9 +166,9 @@ const renderRow = (item: ResultList) => (
         },
         assignment: {
           include: {
-            lesson: {
+            course: {
               select: {
-                course: { select: { name: true } },
+                name: true,
                 teacher: { select: { name: true, surname: true } },
               },
             },
@@ -194,10 +194,10 @@ const renderRow = (item: ResultList) => (
         title: assessment.title,
         studentName: item.student.name,
         studentSurname: item.student.surname,
-        teacherName: assessment.lesson.teacher.name,
-        teacherSurname: assessment.lesson.teacher.surname,
+        teacherName: assessment.course.teacher.name,
+        teacherSurname: assessment.course.teacher.surname,
         score: item.score,
-        className: assessment.lesson.course.name,
+        className: assessment.course.name,
         startTime: isExam ? assessment.startTime : assessment.startDate,
       };
     })

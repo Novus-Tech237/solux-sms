@@ -82,6 +82,8 @@ model Course {
   teacherId   String
   teacher     Teacher @relation(fields: [teacherId], references: [id])
   lessons     Lesson[]
+  assignments Assignment[]
+  exams       Exam[]
   registrations StudentCourseRegistration[]
 
   @@unique([programId, name])
@@ -151,8 +153,6 @@ model Lesson {
   course      Course?      @relation(fields: [courseId], references: [id])
   teacherId   String
   teacher     Teacher      @relation(fields: [teacherId], references: [id])
-  exams       Exam[]
-  assignments Assignment[]
   attendances Attendance[]
 }
 
@@ -162,9 +162,10 @@ model Exam {
   startTime DateTime
   endTime   DateTime
   pdfUrl    String?
+  maxSubmissions Int? @default(1)
 
-  lessonId Int
-  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  courseId Int
+  course   Course   @relation(fields: [courseId], references: [id])
   results  Result[]
   submissions ExamSubmission[]
 }
@@ -175,9 +176,10 @@ model Assignment {
   startDate DateTime
   dueDate   DateTime
   pdfUrl    String?
-
-  lessonId Int
-  lesson   Lesson   @relation(fields: [lessonId], references: [id])
+  maxSubmissions Int? @default(1)
+gradesReleased Boolean @default(false)
+  courseId Int
+  course   Course   @relation(fields: [courseId], references: [id])
   results  Result[]
   submissions AssignmentSubmission[]
 }
@@ -186,24 +188,25 @@ model AssignmentSubmission {
   id           Int        @id @default(autoincrement())
   fileUrl      String
   submittedAt  DateTime   @default(now())
+  status       SubmissionStatus @default(DRAFT)
+  grade        LetterGrade?
+  gradeReleased Boolean   @default(false)
   assignmentId Int
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id])
-
-  @@unique([assignmentId, studentId])
 }
 
 model ExamSubmission {
   id          Int      @id @default(autoincrement())
   fileUrl     String
   submittedAt DateTime @default(now())
+  grade       LetterGrade?
+  gradeReleased Boolean  @default(false)
   examId      Int
   exam        Exam     @relation(fields: [examId], references: [id])
   studentId   String
   student     Student  @relation(fields: [studentId], references: [id])
-
-  @@unique([examId, studentId])
 }
 
 model Result {
@@ -233,7 +236,7 @@ model Event {
   id          Int      @id @default(autoincrement())
   title       String
   description String
-  startTime   DateTime @index
+  startTime   DateTime
   endTime     DateTime
   recurrence  EventRecurrence @default(NONE)
 
@@ -270,4 +273,20 @@ enum EventRecurrence {
   WEEKLY
   MONTHLY
   YEARLY
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum LetterGrade {
+  A
+  B_PLUS
+  B
+  C_PLUS
+  C
+  D_PLUS
+  D
+  F
 }

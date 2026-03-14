@@ -102,7 +102,8 @@ export const examSchema = z.object({
   startTime: z.coerce.date({ message: "Start time is required!" }),
   endTime: z.coerce.date({ message: "End time is required!" }),
   pdfUrl: cloudinarySecureUrlSchema,
-  lessonId: z.coerce.number({ message: "Lesson is required!" }),
+  courseId: z.coerce.number({ message: "Course is required!" }),
+  maxSubmissions: z.coerce.number().min(1).optional(),
 });
 
 export type ExamSchema = z.infer<typeof examSchema>;
@@ -127,7 +128,8 @@ export const assignmentSchema = z.object({
   startDate: z.coerce.date({ message: "Start date is required!" }),
   dueDate: z.coerce.date({ message: "Due date is required!" }),
   pdfUrl: cloudinarySecureUrlSchema,
-  lessonId: z.coerce.number({ message: "Lesson is required!" }),
+  courseId: z.coerce.number({ message: "Course is required!" }),
+  maxSubmissions: z.coerce.number().min(1).optional(),
 });
 
 export type AssignmentSchema = z.infer<typeof assignmentSchema>;

@@ -50,17 +50,14 @@ const StudentExamSubmissionPage = async ({
   // Get exams from courses in the student's program
   const exams = await prisma.exam.findMany({
     where: {
-      lesson: {
-        courseId: {
-          in: courseIds,
-        },
+      courseId: {
+        in: courseIds,
       },
     },
     include: {
-      lesson: {
+      course: {
         select: {
           name: true,
-          course: { select: { name: true } },
           teacher: { select: { name: true, surname: true } },
         },
       },
@@ -72,6 +69,15 @@ const StudentExamSubmissionPage = async ({
           id: true,
           submittedAt: true,
           fileUrl: true,
+        },
+      },
+      _count: {
+        select: {
+          submissions: {
+            where: {
+              studentId: userId,
+            },
+          },
         },
       },
     },
@@ -114,6 +120,8 @@ const StudentExamSubmissionPage = async ({
               examId={exam.id}
               examTitle={exam.title}
               studentId={userId}
+              currentSubmissions={exam.submissions.length}
+              maxSubmissions={exam.maxSubmissions || 1}
             />
           </div>
 
@@ -127,14 +135,14 @@ const StudentExamSubmissionPage = async ({
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Course</p>
                 <p className="font-medium text-gray-800 dark:text-gray-100">
-                  {exam.lesson.course?.name || "-"}
+                  {exam.course?.name || "-"}
                 </p>
               </div>
 
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Teacher</p>
                 <p className="font-medium text-gray-800 dark:text-gray-100">
-                  {exam.lesson.teacher.name} {exam.lesson.teacher.surname}
+                  {exam.course?.teacher.name} {exam.course?.teacher.surname}
                 </p>
               </div>
 
@@ -177,13 +185,13 @@ const StudentExamSubmissionPage = async ({
                     SUBMISSION STATUS
                   </p>
                   <p className="text-green-600 dark:text-green-400 font-medium mt-1">
-                    ✓ Submitted
+                    ✓ Submitted ({exam.submissions.length}/{exam.maxSubmissions || 1})
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {new Intl.DateTimeFormat("en-US", {
+                    Last submitted: {new Intl.DateTimeFormat("en-US", {
                       dateStyle: "medium",
                       timeStyle: "short",
-                    }).format(new Date(exam.submissions[0].submittedAt))}
+                    }).format(new Date(exam.submissions[exam.submissions.length - 1].submittedAt))}
                   </p>
                 </div>
               )}

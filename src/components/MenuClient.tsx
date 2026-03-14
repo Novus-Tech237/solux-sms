@@ -28,7 +28,7 @@ const MenuClient = ({ menuItems, role }: { menuItems: MenuItem[]; role: string }
     <div className="mt-4 text-sm">
       {menuItems.map((group) => (
         <div className="flex flex-col gap-2" key={group.title}>
-          <span className="hidden lg:block text-gray-400 font-light my-4">{t(group.title.toLowerCase())}</span>
+          <span className="hidden lg:block text-gray-400 font-light my-4">{t(group.title.toLowerCase() as Parameters<typeof t>[0])}</span>
           {group.items.map((item) => {
             if (!item.visible.includes(role)) return null;
 
@@ -40,7 +40,7 @@ const MenuClient = ({ menuItems, role }: { menuItems: MenuItem[]; role: string }
             return (
               <Link href={item.href} key={item.label} className={linkClass(isActive)} aria-current={isActive ? "page" : undefined}>
                 <Image src={item.icon} alt="" width={20} height={20} />
-                <span className="hidden lg:block">{t(item.label.toLowerCase())}</span>
+                <span className="hidden lg:block">{t(item.label.toLowerCase() as Parameters<typeof t>[0])}</span>
               </Link>
             );
           })}
