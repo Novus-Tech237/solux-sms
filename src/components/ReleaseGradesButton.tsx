@@ -1,6 +1,6 @@
 "use client";
 
-import { releaseAssignmentGrades, releaseExamGrades } from "@/lib/actions";
+import { releaseAssignmentGrades } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useState } from "react";
@@ -96,16 +96,16 @@ export default function ReleaseGradesButton({
     try {
       const result =
         type === "assignment"
-          ? await releaseAssignmentGrades(assessmentId, courseId)
-          : await releaseExamGrades(assessmentId, courseId);
+          ? await releaseAssignmentGrades(assessmentId, courseId) : null
+          // : await releaseExamGrades(assessmentId, courseId);
 
-      if (result.success) {
+      if (result?.success) {
         toast.success(`${type === "assignment" ? "Assignment" : "Exam"} grades released to all students!`);
         setReleased(true);
         setShowModal(false);
         router.refresh();
       } else {
-        toast.error(result.message || "Failed to release grades");
+        toast.error(result?.message || "Failed to release grades");
       }
     } catch (error) {
       toast.error("An error occurred while releasing grades");

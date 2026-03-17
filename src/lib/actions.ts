@@ -192,9 +192,7 @@ export const createTeacher = async (
         phone: data.phone || null,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType || null,
         sex: data.sex,
-        birthday: data.birthday || null,
         subjects: {
           connect: data.subjects?.map((subjectId: string) => ({
             id: parseInt(subjectId),
@@ -239,9 +237,7 @@ export const updateTeacher = async (
         phone: data.phone || null,
         address: data.address,
         img: data.img || null,
-        bloodType: data.bloodType as string,
         sex: data.sex,
-        birthday: data.birthday,
         subjects: {
           set: data.subjects?.map((subjectId: string) => ({
             id: parseInt(subjectId),
@@ -397,26 +393,20 @@ export const createExam = async (
   currentState: CurrentState,
   data: ExamSchema
 ) => {
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const { userId, sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
     if (!isCloudinaryUrl(data.pdfUrl)) {
       return { success: false, error: true };
     }
 
-    // if (role === "teacher") {
-    //   const teacherLesson = await prisma.lesson.findFirst({
-    //     where: {
-    //       teacherId: userId!,
-    //       id: data.lessonId,
-    //     },
-    //   });
-
-    //   if (!teacherLesson) {
-    //     return { success: false, error: true };
-    //   }
-    // }
+    if (role === "teacher") {
+      const canAccess = await verifyTeacherCourseAccess(userId!, data.courseId);
+      if (!canAccess) {
+        return { success: false, error: true };
+      }
+    }
 
     await prisma.exam.create({
       data: {
@@ -441,26 +431,20 @@ export const updateExam = async (
   currentState: CurrentState,
   data: ExamSchema
 ) => {
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const { userId, sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
     if (!isCloudinaryUrl(data.pdfUrl)) {
       return { success: false, error: true };
     }
 
-    // if (role === "teacher") {
-    //   const teacherLesson = await prisma.lesson.findFirst({
-    //     where: {
-    //       teacherId: userId!,
-    //       id: data.lessonId,
-    //     },
-    //   });
-
-    //   if (!teacherLesson) {
-    //     return { success: false, error: true };
-    //   }
-    // }
+    if (role === "teacher") {
+      const canAccess = await verifyTeacherCourseAccess(userId!, data.courseId);
+      if (!canAccess) {
+        return { success: false, error: true };
+      }
+    }
 
     await prisma.exam.update({
       where: {
@@ -490,14 +474,14 @@ export const deleteExam = async (
 ) => {
   const id = data.get("id") as string;
 
-  // const { userId, sessionClaims } = auth();
-  // const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const { userId, sessionClaims } = auth();
+  const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
     await prisma.exam.delete({
       where: {
         id: parseInt(id),
-        // ...(role === "teacher" ? { lesson: { teacherId: userId! } } : {}),
+        ...(role === "teacher" ? { course: { teacherId: userId! } } : {}),
       },
     });
 
@@ -521,6 +505,57 @@ const verifyTeacherCourseAccess = async (teacherId: string, courseId: number) =>
   return Boolean(course);
 };
 
+const verifyTeacherLessonAccess = async (teacherId: string, lessonId: number) => {
+  const lesson = await prisma.lesson.findFirst({
+    where: {
+      id: lessonId,
+      teacherId,
+    },
+    select: { id: true },
+  });
+
+  return Boolean(lesson);
+};
+
+const convertTimeToDate = (day: string, time: string) => {
+  const dayMap: { [key: string]: number } = {
+    MONDAY: 1,
+    TUESDAY: 2,
+    WEDNESDAY: 3,
+    THURSDAY: 4,
+    FRIDAY: 5,
+    SATURDAY: 6,
+    SUNDAY: 7,
+  };
+  
+  // Handle various time formats (HH:mm, HH:mm:ss, or with AM/PM)
+  const timeRegex = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i;
+  const match = time.match(timeRegex);
+  
+  let hours = 0;
+  let minutes = 0;
+
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const ampm = match[3];
+
+    if (ampm) {
+      if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
+      if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+    }
+  } else {
+    // Fallback to simple split if regex fails
+    const parts = time.split(":");
+    hours = parseInt(parts[0], 10) || 0;
+    minutes = parseInt(parts[1], 10) || 0;
+  }
+
+  const date = new Date(2024, 0, dayMap[day] || 1); // Jan 1st 2024 was Monday
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
 export const createLesson = async (
   currentState: CurrentState,
   data: LessonSchema
@@ -529,7 +564,7 @@ export const createLesson = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
-    if (!isCloudinaryUrl(data.pdfUrl) || !isOptionalCloudinaryUrl(data.videoUrl)) {
+    if (!isOptionalCloudinaryUrl(data.pdfUrl) || !isOptionalCloudinaryUrl(data.videoUrl)) {
       return { success: false, error: true };
     }
 
@@ -557,19 +592,26 @@ export const createLesson = async (
       }
     }
 
+    const startTime = convertTimeToDate(data.day, data.startTime);
+    const endTime = convertTimeToDate(data.day, data.endTime);
+
     await prisma.lesson.create({
       data: {
-        name: data.name,
+        name: data.name || "Lesson",
         day: data.day,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        pdfUrl: data.pdfUrl,
+        startTime,
+        endTime,
+        pdfUrl: data.pdfUrl || null,
         videoUrl: data.videoUrl || null,
         courseId: data.courseId,
         teacherId,
       },
     });
 
+    revalidatePath("/list/lessons");
+    revalidatePath("/student");
+    revalidatePath("/teacher");
+    revalidatePath("/admin");
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
@@ -585,38 +627,65 @@ export const updateLesson = async (
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   try {
-    if (!isCloudinaryUrl(data.pdfUrl) || !isOptionalCloudinaryUrl(data.videoUrl)) {
-      return { success: false, error: true };
+    if (!isOptionalCloudinaryUrl(data.pdfUrl) || !isOptionalCloudinaryUrl(data.videoUrl)) {
+      return { success: false, error: true, message: "Invalid Cloudinary URL" };
     }
 
     if (!data.id) {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Lesson ID is required" };
     }
 
     if (role !== "admin" && role !== "teacher") {
-      return { success: false, error: true };
+      return { success: false, error: true, message: "Unauthorized" };
+    }
+
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id: data.id },
+    });
+
+    if (!existingLesson) {
+      return { success: false, error: true, message: "Lesson not found" };
     }
 
     if (role === "teacher") {
-      const canAccess = await verifyTeacherCourseAccess(userId!, data.id);
+      const canAccess = await verifyTeacherLessonAccess(userId!, data.id);
       if (!canAccess) {
-        return { success: false, error: true };
+        return { success: false, error: true, message: "Access denied" };
       }
+    }
+
+    // Only update scheduling fields if role is admin OR if they are explicitly provided and valid
+    // For teachers, we usually want to preserve the existing schedule set by admin
+    const updateData: any = {
+      name: data.name || existingLesson.name,
+      pdfUrl: data.pdfUrl || existingLesson.pdfUrl,
+      videoUrl: data.videoUrl || existingLesson.videoUrl,
+    };
+
+    if (role === "admin") {
+      updateData.day = data.day;
+      updateData.startTime = convertTimeToDate(data.day, data.startTime);
+      updateData.endTime = convertTimeToDate(data.day, data.endTime);
+      updateData.courseId = data.courseId;
+      updateData.teacherId = data.teacherId || existingLesson.teacherId;
+    } else {
+      // For teachers, we preserve existing schedule
+      updateData.day = existingLesson.day;
+      updateData.startTime = existingLesson.startTime;
+      updateData.endTime = existingLesson.endTime;
+      updateData.courseId = existingLesson.courseId;
     }
 
     await prisma.lesson.update({
       where: { id: data.id },
-      data: {
-        name: data.name,
-        day: data.day,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        pdfUrl: data.pdfUrl,
-        videoUrl: data.videoUrl || null,
-        courseId: data.courseId,
-      },
+      data: updateData,
     });
 
+    revalidatePath("/", "layout");
+    revalidatePath("/list/lessons");
+    revalidatePath("/student");
+    revalidatePath("/teacher");
+    revalidatePath("/admin");
     return { success: true, error: false };
   } catch (err) {
     console.log(err);
@@ -638,7 +707,7 @@ export const deleteLesson = async (
     }
 
     if (role === "teacher") {
-      const canAccess = await verifyTeacherCourseAccess(userId!, id);
+      const canAccess = await verifyTeacherLessonAccess(userId!, id);
       if (!canAccess) {
         return { success: false, error: true };
       }
@@ -758,7 +827,7 @@ export const deleteAssignment = async (
 
     if (role === "teacher") {
       const assignment = await prisma.assignment.findFirst({
-        where: { id, lesson: { teacherId: userId! } },
+        where: { id, course: { teacherId: userId! } },
         select: { id: true },
       });
 
@@ -877,7 +946,7 @@ export const updateWorkDeadline = async (
     if (data.type === "assignment") {
       if (role === "teacher") {
         const assignment = await prisma.assignment.findFirst({
-          where: { id: data.id, lesson: { teacherId: userId! } },
+          where: { id: data.id, course: { teacherId: userId! } },
           select: { id: true },
         });
         if (!assignment) {
@@ -892,7 +961,7 @@ export const updateWorkDeadline = async (
     } else {
       if (role === "teacher") {
         const exam = await prisma.exam.findFirst({
-          where: { id: data.id, lesson: { teacherId: userId! } },
+          where: { id: data.id, course: { teacherId: userId! } },
           select: { id: true },
         });
         if (!exam) {

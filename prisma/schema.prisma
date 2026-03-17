@@ -265,6 +265,8 @@ enum Day {
   WEDNESDAY
   THURSDAY
   FRIDAY
+  SATURDAY
+  SUNDAY
 }
 
 enum EventRecurrence {

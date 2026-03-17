@@ -228,15 +228,15 @@ const StudentExamSubmissionPage = async ({
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">Course</p>
-                      <p className="font-medium text-gray-800 dark:text-gray-100">
+                      {/* <p className="font-medium text-gray-800 dark:text-gray-100">
                         {exam.lesson.course?.name || "-"}
-                      </p>
+                      </p> */}
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">Teacher</p>
-                      <p className="font-medium text-gray-800 dark:text-gray-100">
+                      {/* <p className="font-medium text-gray-800 dark:text-gray-100">
                         {exam.lesson.teacher.name}
-                      </p>
+                      </p> */}
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">Start Date</p>

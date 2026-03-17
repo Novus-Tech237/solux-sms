@@ -72,7 +72,7 @@ const TeacherSubmissionsPage = async ({
         courseName: e.course.name,
         date: e.startTime,
         submissionCount: e._count.submissions,
-        gradesReleased: e.gradesReleased,
+        gradesReleased: false,
       })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
 

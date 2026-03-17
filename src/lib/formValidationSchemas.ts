@@ -110,13 +110,13 @@ export type ExamSchema = z.infer<typeof examSchema>;
 
 export const lessonSchema = z.object({
   id: z.coerce.number().optional(),
-  name: z.string().min(1, { message: "Lesson name is required!" }),
-  day: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]),
-  startTime: z.coerce.date({ message: "Start time is required!" }),
-  endTime: z.coerce.date({ message: "End time is required!" }),
+  name: z.string().optional().or(z.literal("")),
+  day: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]),
+  startTime: z.string().min(1, { message: "Start time is required!" }),
+  endTime: z.string().min(1, { message: "End time is required!" }),
   courseId: z.coerce.number({ message: "Course is required!" }),
   teacherId: z.string().optional(),
-  pdfUrl: cloudinarySecureUrlSchema,
+  pdfUrl: optionalCloudinarySecureUrlSchema,
   videoUrl: optionalCloudinarySecureUrlSchema,
 });
 

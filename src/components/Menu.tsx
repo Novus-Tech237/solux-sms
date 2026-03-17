@@ -44,9 +44,9 @@ const menuItems = [
       },
       {
         icon: "/lesson.png",
-        label: "Lessons",
+        label: "Timetable",
         href: "/list/lessons",
-        visible: ["admin", "teacher"],
+        visible: ["admin", "teacher", "student"],
       },
       {
         icon: "/exam.png",

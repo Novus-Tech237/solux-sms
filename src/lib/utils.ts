@@ -10,41 +10,59 @@ export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 const getLatestMonday = (): Date => {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const latestMonday = today;
+  
+  // If today is Saturday (6) or Sunday (0), the calendar's WORK_WEEK usually shows the upcoming Mon-Fri.
+  // We want to return the Monday of THAT week.
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + (dayOfWeek === 0 ? 1 : 2));
+    return nextMonday;
+  }
+  
+  const daysSinceMonday = dayOfWeek - 1;
+  const latestMonday = new Date(today);
   latestMonday.setDate(today.getDate() - daysSinceMonday);
   return latestMonday;
 };
 
 export const adjustScheduleToCurrentWeek = (
-  lessons: { title: string; start: Date; end: Date }[]
-): { title: string; start: Date; end: Date }[] => {
-  const latestMonday = getLatestMonday();
+  lessons: any[]
+): any[] => {
+  const startOfWeek = getLatestMonday();
+  const allOccurrences: any[] = [];
 
-  return lessons.map((lesson) => {
-    const lessonDayOfWeek = lesson.start.getDay();
+  // Generate occurrences for a broad range (e.g., 20 weeks before and 20 weeks after today)
+  // to make the timetable feel truly periodic and visible in any week/day the user views.
+  for (let i = -20; i <= 20; i++) {
+    const currentWeekMonday = new Date(startOfWeek);
+    currentWeekMonday.setDate(startOfWeek.getDate() + (i * 7));
 
-    const daysFromMonday = lessonDayOfWeek === 0 ? 6 : lessonDayOfWeek - 1;
+    lessons.forEach((lesson) => {
+      const lessonDayOfWeek = lesson.start.getDay();
+      const daysFromMonday = lessonDayOfWeek === 0 ? 6 : lessonDayOfWeek - 1;
 
-    const adjustedStartDate = new Date(latestMonday);
+      const adjustedStartDate = new Date(currentWeekMonday);
+      adjustedStartDate.setDate(currentWeekMonday.getDate() + daysFromMonday);
+      adjustedStartDate.setHours(
+        lesson.start.getHours(),
+        lesson.start.getMinutes(),
+        lesson.start.getSeconds()
+      );
 
-    adjustedStartDate.setDate(latestMonday.getDate() + daysFromMonday);
-    adjustedStartDate.setHours(
-      lesson.start.getHours(),
-      lesson.start.getMinutes(),
-      lesson.start.getSeconds()
-    );
-    const adjustedEndDate = new Date(adjustedStartDate);
-    adjustedEndDate.setHours(
-      lesson.end.getHours(),
-      lesson.end.getMinutes(),
-      lesson.end.getSeconds()
-    );
+      const adjustedEndDate = new Date(adjustedStartDate);
+      adjustedEndDate.setHours(
+        lesson.end.getHours(),
+        lesson.end.getMinutes(),
+        lesson.end.getSeconds()
+      );
 
-    return {
-      title: lesson.title,
-      start: adjustedStartDate,
-      end: adjustedEndDate,
-    };
-  });
+      allOccurrences.push({
+        ...lesson,
+        start: adjustedStartDate,
+        end: adjustedEndDate,
+      });
+    });
+  }
+
+  return allOccurrences;
 };

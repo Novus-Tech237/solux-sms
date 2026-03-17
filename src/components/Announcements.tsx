@@ -5,7 +5,7 @@ const Announcements = async () => {
   const { userId, sessionClaims } = auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  const roleConditions = {
+  const roleConditions: { [key: string]: any } = {
     teacher: { lessons: { some: { teacherId: userId! } } },
     student: { students: { some: { id: userId! } } },
     parent: { students: { some: { parentId: userId! } } },

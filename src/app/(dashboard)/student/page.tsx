@@ -1,10 +1,8 @@
-import BigCalendar from "@/components/BigCalender";
+import BigCalendarContainer from "@/components/BigCalendarContainer";
 import EventCalendarContainer from "@/components/EventCalendarContainer";
 import prisma from "@/lib/prisma";
-import { adjustScheduleToCurrentWeek } from "@/lib/utils";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
-import { Lesson } from "@prisma/client";
 
 const StudentPage = async () => {
   const { userId } = auth();
@@ -16,91 +14,31 @@ const StudentPage = async () => {
       status: "ACTIVE",
     },
     include: {
-      program: {
-        include: {
-          courses: {
-            include: {
-              lessons: true,
-            },
-          },
-        },
-      },
+      program: true,
     },
   });
-
-  // Get lessons for courses explicitly registered by the student in the active program.
-  let lessons: Pick<Lesson, "name" | "startTime" | "endTime">[] = [];
-  if (enrollment?.program) {
-    const registrations = await prisma.studentCourseRegistration.findMany({
-      where: {
-        studentId: userId!,
-        course: {
-          programId: enrollment.program.id,
-        },
-      },
-      select: {
-        courseId: true,
-      },
-    });
-
-    const registeredCourseIds = registrations.map(
-      (registration) => registration.courseId
-    );
-
-    lessons = await prisma.lesson.findMany({
-      where: {
-        courseId: { in: registeredCourseIds },
-      },
-      select: {
-        name: true,
-        startTime: true,
-        endTime: true,
-      },
-    });
-  }
-
-  const schedule = adjustScheduleToCurrentWeek(
-    lessons.map((lesson) => ({
-      title: lesson.name,
-      start: lesson.startTime,
-      end: lesson.endTime,
-    }))
-  );
 
   return (
     <div className="p-4 flex gap-4 flex-col xl:flex-row">
       {/* LEFT */}
       <div className="w-full xl:w-2/3">
-        <div className="h-full bg-white p-4 rounded-md">
+        <div className="bg-white p-4 rounded-md">
           {enrollment?.program ? (
             <>
               <div className="flex justify-between items-center mb-4">
                 <h1 className="text-xl font-semibold">
                   Schedule - {enrollment.program.name}
                 </h1>
-                
               </div>
-              {schedule.length > 0 ? (
-                <BigCalendar data={schedule} />
-              ) : (
-                <p className="text-sm text-gray-500">
-                  No lessons found. Register at least one course from your program.
-                </p>
-              )}
+              <BigCalendarContainer type="studentId" id={userId!} />
             </>
           ) : (
             <div className="text-center py-8">
               <h2 className="text-xl font-semibold mb-4">No Program Enrolled</h2>
               <p className="text-gray-600 mb-6">
                 You haven&apos;t enrolled in any program yet. Please choose a program to
-                get started.
+                view your schedule.
               </p>
-              <Link
-                href="/student/available-courses"
-                className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md transition-colors"
-              >
-                Browse Available Programs
-              </Link>
             </div>
           )}
         </div>
